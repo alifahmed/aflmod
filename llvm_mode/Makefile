@@ -79,10 +79,6 @@ CXXFLAGS    ?= -O3 -funroll-loops
 CXXFLAGS    += -Wall -D_FORTIFY_SOURCE=2 -g -I ../include/ \
                -DVERSION=\"$(VERSION)\" -Wno-variadic-macros -DMAP_SIZE_POW2=$(MAP_SIZE_POW2)
 
-PYTHON_OK=0
-PYFLAGS=
-LDFLAGS += -lm -lrt -lpthread -lz -lutil
-
 CLANG_CFL    = `$(LLVM_CONFIG) --cxxflags` -Wl,-znodelete -fno-rtti -fpic $(CXXFLAGS) -DMAP_SIZE_POW2=$(MAP_SIZE_POW2)
 CLANG_LFL    = `$(LLVM_CONFIG) --ldflags` $(LDFLAGS)
 
