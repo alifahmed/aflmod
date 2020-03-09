@@ -1,6 +1,6 @@
 # american fuzzy lop plus plus (afl++)
 
-  ![Travis State](https://api.travis-ci.com/vanhauser-thc/AFLplusplus.svg?branch=master)
+  
 
   Release Version: 2.60c 
 
