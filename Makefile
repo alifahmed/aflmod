@@ -46,9 +46,9 @@ else
  endif
 endif
 
-ifeq "$(shell echo 'int main() {return 0; }' | $(CC) -x c - -march=native -o .test 2>/dev/null && echo 1 || echo 0 ; rm -f .test )" "1"
-	CFLAGS_OPT = -march=native
-endif
+#ifeq "$(shell echo 'int main() {return 0; }' | $(CC) -x c - -march=native -o .test 2>/dev/null && echo 1 || echo 0 ; rm -f .test )" "1"
+#	CFLAGS_OPT = -march=native
+#endif
 
 ifneq "$(shell uname -m)" "x86_64"
  ifneq "$(shell uname -m)" "i386"
@@ -58,8 +58,7 @@ ifneq "$(shell uname -m)" "x86_64"
  endif
 endif
 
-CFLAGS     ?= -O3 -funroll-loops $(CFLAGS_OPT)
-CFLAGS     += -Wall -g -Wno-pointer-sign -I include/ \
+CFLAGS     = -O3 -funroll-loops -msse4.2 -msse2 -msse3 -Wno-pointer-sign -I include/ \
               -DAFL_PATH=\"$(HELPER_PATH)\" -DBIN_PATH=\"$(BIN_PATH)\" \
               -DDOC_PATH=\"$(DOC_PATH)\" -Wno-unused-function -DMAP_SIZE_POW2=$(MAP_SIZE_POW2)
 
