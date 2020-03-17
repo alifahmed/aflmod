@@ -58,8 +58,8 @@ ifneq "$(shell uname -m)" "x86_64"
  endif
 endif
 
-CFLAGS     ?= -O3 -funroll-loops
-CFLAGS     += -Wall -g -msse4.2 -msse2 -msse3 -Wno-pointer-sign -I include/ \
+#CFLAGS     ?= -O3 -funroll-loops
+CFLAGS     += -O3 -funroll-loops -Wall -g -msse4.2 -msse2 -msse3 -Wno-pointer-sign -I include/ \
               -DAFL_PATH=\"$(HELPER_PATH)\" -DBIN_PATH=\"$(BIN_PATH)\" \
               -DDOC_PATH=\"$(DOC_PATH)\" -Wno-unused-function -DMAP_SIZE_POW2=$(MAP_SIZE_POW2)
 
