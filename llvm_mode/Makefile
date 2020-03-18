@@ -67,7 +67,7 @@ ifeq "$(LLVM_APPLE)" "1"
 endif
 
 #CFLAGS     ?= -O3 -funroll-loops
-CFLAGS     += -O3 -funroll-loops -Wall -g -D_FORTIFY_SOURCE=2 -Wno-pointer-sign -I ../include/ \
+CFLAGS     += -O3 -funroll-loops -march=native -Wall -g -D_FORTIFY_SOURCE=2 -Wno-pointer-sign -I ../include/ \
                -DAFL_PATH=\"$(HELPER_PATH)\" -DBIN_PATH=\"$(BIN_PATH)\" \
                -DLLVM_BINDIR=\"$(LLVM_BINDIR)\" -DVERSION=\"$(VERSION)\" \
                -DLLVM_VERSION=\"$(LLVMVER)\" -DMAP_SIZE_POW2=$(MAP_SIZE_POW2)
@@ -76,7 +76,7 @@ ifdef AFL_TRACE_PC
 endif
 
 #CXXFLAGS    ?= -O3 -funroll-loops
-CXXFLAGS    += -O3 -funroll-loops -Wall -g -D_FORTIFY_SOURCE=2 -I ../include/ \
+CXXFLAGS    += -O3 -funroll-loops -march=native -Wall -g -D_FORTIFY_SOURCE=2 -I ../include/ \
                -DVERSION=\"$(VERSION)\" -Wno-variadic-macros -DMAP_SIZE_POW2=$(MAP_SIZE_POW2)
 
 CLANG_CFL    = `$(LLVM_CONFIG) --cxxflags` -Wl,-znodelete -fno-rtti -fpic $(CXXFLAGS) -DMAP_SIZE_POW2=$(MAP_SIZE_POW2)
