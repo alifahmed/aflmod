@@ -91,17 +91,17 @@ If 1, close stdout at startup. If 2 close stderr; if 3 close both.
 #endif
 
 // libFuzzer interface is thin, so we don't include any libFuzzer headers.
-int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size);
+extern "C" int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size);
 __attribute__((weak)) int LLVMFuzzerInitialize(int *argc, char ***argv);
 
 // Notify AFL about persistent mode.
 static volatile char AFL_PERSISTENT[] = "##SIG_AFL_PERSISTENT##";
-int __afl_persistent_loop(unsigned int);
+extern "C" int __afl_persistent_loop(unsigned int);
 static volatile char suppress_warning2 = AFL_PERSISTENT[0];
 
 // Notify AFL about deferred forkserver.
 static volatile char AFL_DEFER_FORKSVR[] = "##SIG_AFL_DEFER_FORKSRV##";
-void __afl_manual_init();
+extern "C" void __afl_manual_init();
 static volatile char suppress_warning1 = AFL_DEFER_FORKSVR[0];
 
 // Input buffer.
