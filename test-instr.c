@@ -1,11 +1,10 @@
 /*
-   american fuzzy lop++ - a trivial program to test the build
+   american fuzzy lop - a trivial program to test the build
    --------------------------------------------------------
 
-   Originally written by Michal Zalewski
+   Written and maintained by Michal Zalewski <lcamtuf@google.com>
 
    Copyright 2014 Google Inc. All rights reserved.
-   Copyright 2019-2020 AFLplusplus Project. All rights reserved.
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -21,32 +20,18 @@
 
 int main(int argc, char** argv) {
 
-  char  buff[8];
-  char* buf = buff;
+  char buf[8];
 
-  // we support command line parameter and stdin
-  if (argc > 1) {
-
-    buf = argv[1];
-    printf("Input %s - ", buf);
-
-  } else if (read(0, buf, sizeof(buf)) < 1) {
-
+  if (read(0, buf, 8) < 1) {
     printf("Hum?\n");
-    return 1;
-
+    exit(1);
   }
 
-  // we support three input cases (plus a 4th if stdin is used but there is no
-  // input)
   if (buf[0] == '0')
     printf("Looks like a zero to me!\n");
-  else if (buf[0] == '1')
-    printf("Pretty sure that is a one!\n");
   else
-    printf("Neither one or zero? How quaint!\n");
+    printf("A non-zero value? How quaint!\n");
 
-  return 0;
+  exit(0);
 
 }
-

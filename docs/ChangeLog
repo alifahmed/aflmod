@@ -12,218 +12,9 @@ Staying informed
 Want to stay in the loop on major new features? Join our mailing list by
 sending a mail to <afl-users+subscribe@googlegroups.com>.
 
-
---------------------------
-Version ++2.60d (develop):
---------------------------
-
-  - use -march=native if available
-  - afl-fuzz:
-     - now prints the real python version support compiled in
-     - set stronger performance compile options and little tweaks
-     - Android: prefer bigcores when selecting a CPU
-     - CmpLog forkserver
-     - Redqueen input-2-state mutator (cmp instructions only ATM)
-     - all python 2+3 versions supported now
-  - afl-clang-fast:
-     - show in the help output for which llvm version it was compiled for
-     - now does not need to be recompiled between trace-pc and pass
-       instrumentation. compile normally and set AFL_LLVM_USE_TRACE_PC :)
-     - llvm 11 is supported
-     - CmpLog mode (see llvm_mode/README.cmplog)
-  - afl-cmin is now a sh script (invoking awk) instead of bash for portability
-    the original script is still present as afl-cmin.bash
-  - afl-showmap: -i dir option now allows processing multiple inputs using the
-     forkserver. This is for enhanced speed in afl-cmin.
-  - added blacklist and whitelisting function check in all modules of llvm_mode
-  - added fix from Debian project to compile libdislocator and libtokencap
-  - libdislocator: AFL_ALIGNED_ALLOC to force size alignment to max_align_t
-
-
---------------------------
-Version ++2.60c (release):
---------------------------
-
-  - fixed a critical bug in afl-tmin that was introduced during ++2.53d
-  - added test cases for afl-cmin and afl-tmin to test/test.sh
-  - added ./examples/argv_fuzzing ld_preload library by Kjell Braden
-  - added preeny's desock_dup ld_preload library as
-    ./examples/socket_fuzzing for network fuzzing
-  - added AFL_AS_FORCE_INSTRUMENT environment variable for afl-as - this is
-    for the retrorewrite project
-  - we now set QEMU_SET_ENV from AFL_PRELOAD when qemu_mode is used
-
-
---------------------------
-Version ++2.59c (release):
---------------------------
-
-  - qbdi_mode: fuzz android native libraries via QBDI framework
-  - unicorn_mode: switched to the new unicornafl, thanks domenukk
-                  (see https://github.com/vanhauser-thc/unicorn)
-  - afl-fuzz:
-     - added radamsa as (an optional) mutator stage (-R[R])
-     - added -u command line option to not unlink the fuzz input file
-     - Python3 support (autodetect)
-     - AFL_DISABLE_TRIM env var to disable the trim stage
-     - CPU affinity support for DragonFly
-  - llvm_mode:
-     - float splitting is now configured via AFL_LLVM_LAF_SPLIT_FLOATS
-     - support for llvm 10 included now (thanks to devnexen)
-  - libtokencap:
-     - support for *BSD/OSX/Dragonfly added
-     - hook common *cmp functions from widely used libraries
-  - compcov:
-     - hook common *cmp functions from widely used libraries
-     - floating point splitting support for QEMU on x86 targets
-  - qemu_mode: AFL_QEMU_DISABLE_CACHE env to disable QEMU TranslationBlocks caching
-  - afl-analyze: added AFL_SKIP_BIN_CHECK support
-  - better random numbers for gcc_plugin and llvm_mode (thanks to devnexen)
-  - Dockerfile by courtesy of devnexen
-  - added regex.dictionary
-  - qemu and unicorn download scripts now try to download until the full
-    download succeeded. f*ckin travis fails downloading 40% of the time!
-  - more support for Android (please test!)
-  - added the few Android stuff we didnt have already from Google afl repository
-  - removed unnecessary warnings
-
-
---------------------------
-Version ++2.58c (release):
---------------------------
-
-  - reverted patch to not unlink and recreate the input file, it resulted in
-    performance loss of ~10%
-  - added test/test-performance.sh script
-  - (re)added gcc_plugin, fast inline instrumentation is not yet finished,
-    however it includes the whitelisting and persistance feature! by hexcoder-
-  - gcc_plugin tests added to testing framework
-
-
---------------------------------
-Version ++2.54d-2.57c (release):
---------------------------------
-
-  - we jump to 2.57 instead of 2.55 to catch up with Google's versioning
-  - persistent mode for QEMU (see qemu_mode/README.md)
-  - custom mutator library is now an additional mutator, to exclusivly use it
-    add AFL_CUSTOM_MUTATOR_ONLY (that will trigger the previous behaviour)
-  - new library qemu_mode/unsigaction which filters sigaction events
-  - afl-fuzz: new command line option -I to execute a command on a new crash
-  - no more unlinking the input file, this way the input file can also be a
-    FIFO or disk partition
-  - setting LLVM_CONFIG for llvm_mode will now again switch to the selected
-    llvm version. If your setup is correct.
-  - fuzzing strategy yields for custom mutator were missing from the UI, added them :)
-  - added "make tests" which will perform checks to see that all functionality
-    is working as expected. this is currently the starting point, its not complete :)
-  - added mutation documentation feature ("make document"), creates afl-fuzz-document
-    and saves all mutations of the first run on the first file into out/queue/mutations
-  - libtokencap and libdislocator now compile to the afl_root directory and are
-    installed to the .../lib/afl directory when present during make install
-  - more BSD support, e.g. free CPU binding code for FreeBSD (thanks to devnexen)
-  - reducing duplicate code in afl-fuzz
-  - added "make help"
-  - removed compile warnings from python internal stuff
-  - added man page for afl-clang-fast[++]
-  - updated documentation
-  - Wine mode to run Win32 binaries with the QEMU instrumentation (-W)
-  - CompareCoverage for ARM target in QEMU/Unicorn
-  - laf-intel in llvm_mode now also handles floating point comparisons
-
-
---------------------------
-Version ++2.54c (release):
---------------------------
-
-  - big code refactoring:
-    * all includes are now in include/
-    * all afl sources are now in src/ - see src/README.src
-    * afl-fuzz was splitted up in various individual files for including
-      functionality in other programs (e.g. forkserver, memory map, etc.)
-      for better readability.
-    * new code indention everywhere
-  - auto-generating man pages for all (main) tools
-  - added AFL_FORCE_UI to show the UI even if the terminal is not detected
-  - llvm 9 is now supported (still needs testing)
-  - Android is now supported (thank to JoeyJiao!) - still need to modify the Makefile though
-  - fix building qemu on some Ubuntus (thanks to floyd!)
-  - custom mutator by a loaded library is now supported (thanks to kyakdan!)
-  - added PR that includes peak_rss_mb and slowest_exec_ms in the fuzzer_stats report
-  - more support for *BSD (thanks to devnexen!)
-  - fix building on *BSD (thanks to tobias.kortkamp for the patch)
-  - fix for a few features to support different map sized than 2^16
-  - afl-showmap: new option -r now shows the real values in the buckets (stock
-    afl never did), plus shows tuple content summary information now
-  - small docu updates
-  - NeverZero counters for QEMU
-  - NeverZero counters for Unicorn
-  - CompareCoverage Unicorn
-  - immediates-only instrumentation for CompareCoverage
-
-
---------------------------
-Version ++2.53c (release):
---------------------------
-
-  - README is now README.md
-  - imported the few minor changes from the 2.53b release
-  - unicorn_mode got added - thanks to domenukk for the patch!
-  - fix llvm_mode AFL_TRACE_PC with modern llvm
-  - fix a crash in qemu_mode which also exists in stock afl
-  - added libcompcov, a laf-intel implementation for qemu! :)
-    see qemu_mode/libcompcov/README.libcompcov
-  - afl-fuzz now displays the selected core in the status screen (blue {#})
-  - updated afl-fuzz and afl-system-config for new scaling governor location
-    in modern kernels
-  - using the old ineffective afl-gcc will now show a deprecation warning
-  - all queue, hang and crash files now have their discovery time in their name
-  - if llvm_mode was compiled, afl-clang/afl-clang++ will point to these
-    instead of afl-gcc
-  - added instrim, a much faster llvm_mode instrumentation at the cost of
-    path discovery. See llvm_mode/README.instrim (https://github.com/csienslab/instrim)
-  - added MOpt (github.com/puppet-meteor/MOpt-AFL) mode, see docs/README.MOpt
-  - added code to make it more portable to other platforms than Intel Linux
-  - added never zero counters for afl-gcc and optionally (because of an
-    optimization issue in llvm < 9) for llvm_mode (AFL_LLVM_NEVER_ZERO=1)
-  - added a new doc about binary only fuzzing: docs/binaryonly_fuzzing.txt
-  - more cpu power for afl-system-config
-  - added forkserver patch to afl-tmin, makes it much faster (originally from
-    github.com/nccgroup/TriforceAFL)
-  - added whitelist support for llvm_mode via AFL_LLVM_WHITELIST to allow
-    only to instrument what is actually interesting. Gives more speed and less
-    map pollution (originally by choller@mozilla)
-  - added Python Module mutator support, python2.7-dev is autodetected.
-    see docs/python_mutators.txt (originally by choller@mozilla)
-  - added AFL_CAL_FAST for slow applications and AFL_DEBUG_CHILD_OUTPUT for
-    debugging
-  - added -V time and -E execs option to better comparison runs, runs afl-fuzz
-    for a specific time/executions.
-  - added a -s seed switch to allow afl run with a fixed initial
-    seed that is not updated. This is good for performance and path discovery
-    tests as the random numbers are deterministic then
-  - llvm_mode LAF_... env variables can now be specified as AFL_LLVM_LAF_...
-    that is longer but in line with other llvm specific env vars
-
-
------------------------------
-Version ++2.52c (2019-06-05):
------------------------------
-
-  - Applied community patches. See docs/PATCHES for the full list.
-    LLVM and Qemu modes are now faster.
-    Important changes:
-      afl-fuzz: -e EXTENSION commandline option
-      llvm_mode: LAF-intel performance (needs activation, see llvm/README.laf-intel)
-      a few new environment variables for afl-fuzz, llvm and qemu, see docs/env_variables.txt
-  - Added the power schedules of AFLfast by Marcel Boehme, but set the default
-    to the AFL schedule, not to the FAST schedule. So nothing changes unless
-    you use the new -p option :-) - see docs/power_schedules.txt
-  - added afl-system-config script to set all system performance options for fuzzing
-  - llvm_mode works with llvm 3.9 up to including 8 !
-  - qemu_mode got upgraded from 2.1 to 3.1 - incorporated from 
-    https://github.com/andreafioraldi/afl and with community patches added
-
+Not sure if you should upgrade? The lowest currently recommended version
+is 2.41b. If you're stuck on an earlier release, it's strongly advisable
+to get on with the times.
 
 ---------------------------
 Version 2.52b (2017-11-04):
@@ -515,7 +306,7 @@ Version 2.27b:
 
   - Moved libdislocator to its own dir, added README.
 
-  - The demo in examples/instrumented_cmp is no more.
+  - The demo in experimental/instrumented_cmp is no more.
 
 --------------
 Version 2.26b:
@@ -669,7 +460,7 @@ Version 2.11b:
 
   - Made an improvement to afl-gotcpu when -Z not used.
 
-  - Fixed a typo in post_library_png.so.c in examples/. Spotted by Kostya
+  - Fixed a typo in post_library_png.so.c in experimental/. Spotted by Kostya
     Serebryany.
 
 --------------
@@ -1069,7 +860,7 @@ Version 1.75b:
 Version 1.74b:
 --------------
 
-  - Added an example argv[] fuzzing wrapper in examples/argv_fuzzing.
+  - Added an example argv[] fuzzing wrapper in experimental/argv_fuzzing.
     Reworked the bash example to be faster, too.
 
   - Clarified llvm_mode prerequisites for FreeBSD.
@@ -1234,12 +1025,12 @@ Version 1.61b:
 Version 1.60b:
 --------------
 
-  - Allowed examples/llvm_instrumentation/ to graduate to llvm_mode/.
+  - Allowed experimental/llvm_instrumentation/ to graduate to llvm_mode/.
 
-  - Removed examples/arm_support/, since it's completely broken and likely
+  - Removed experimental/arm_support/, since it's completely broken and likely
     unnecessary with LLVM support in place.
 
-  - Added ASAN cgroups script to examples/asan_cgroups/, updated existing
+  - Added ASAN cgroups script to experimental/asan_cgroups/, updated existing
     docs. Courtesy Sam Hakim and David A. Wheeler.
 
   - Refactored afl-tmin to reduce the number of execs in common use cases.
@@ -1259,7 +1050,7 @@ Version 1.59b:
 --------------
 
   - Imported Laszlo Szekeres' experimental LLVM instrumentation into
-    examples/llvm_instrumentation. I'll work on including it in the 
+    experimental/llvm_instrumentation. I'll work on including it in the 
     "mainstream" version soon.
 
   - Fixed another typo, thanks to Jakub Wilk.
@@ -1308,7 +1099,7 @@ Version 1.54b:
 
   - Added another postprocessor example for PNG.
 
-  - Made a cosmetic fix to realloc() handling in examples/post_library/,
+  - Made a cosmetic fix to realloc() handling in experimental/post_library/,
     suggested by Jakub Wilk.
 
   - Improved -ldl handling. Suggested by Jakub Wilk.
@@ -1326,7 +1117,7 @@ Version 1.52b:
 
   - Added support for file format postprocessors. Requested by Ben Nagy. This
     feature is intentionally buried, since it's fairly easy to misuse and
-    useful only in some scenarios. See examples/post_library/.
+    useful only in some scenarios. See experimental/post_library/.
 
 --------------
 Version 1.51b:
@@ -1961,7 +1752,7 @@ Version 0.98b:
   - Fixed another cosmetic snafu with stage exec counts for -x.
 
   - Switched afl-plot to /bin/sh, since it seems bashism-free. Also tried
-    to remove any obvious bashisms from other examples/ scripts,
+    to remove any obvious bashisms from other experimental/ scripts,
     most notably including minimize_corpus.sh and triage_crashes.sh.
     Requested by Jonathan Gray.
 
@@ -2129,7 +1920,7 @@ Version 0.84b:
 Version 0.83b:
 --------------
 
-  - Added examples/clang_asm_normalize/ and related notes in 
+  - Added experimental/clang_asm_normalize/ and related notes in 
     env_variables.txt and afl-as.c. Thanks to Ryan Govostes for the idea.
 
   - Added advice on hardware utilization in README.
@@ -2353,7 +2144,7 @@ Version 0.62b:
 
   - Made minor improvements to the allocator, as suggested by Tobias Ospelt.
 
-  - Added example instrumented memcmp() in examples/instrumented_cmp.
+  - Added example instrumented memcmp() in experimental/instrumented_cmp.
 
   - Added a speculative fix for MacOS X (clang detection, again).
 
@@ -2478,7 +2269,7 @@ Version 0.53b:
 Version 0.52b:
 --------------
 
-  - Added a quick summary of the contents in examples/.
+  - Added a quick summary of the contents in experimental/.
 
   - Made a fix to the process of writing fuzzer_stats.
 
@@ -2640,7 +2431,7 @@ Version 0.43b:
 
   - Added status_screen.txt.
 
-  - Added examples/canvas_harness.
+  - Added experimental/canvas_harness.
 
   - Made a minor change to the Makefile GCC check. Suggested by Hanno Boeck.
 
@@ -2651,7 +2442,7 @@ Version 0.42b:
   - Fixed a bug with red zone handling for 64-bit (oops!). Problem reported by
     Felix Groebert.
 
-  - Implemented horribly experimental ARM support in examples/arm_support.
+  - Implemented horribly experimental ARM support in experimental/arm_support.
 
   - Made several improvements to error messages.
 
@@ -2690,7 +2481,7 @@ Version 0.40b:
   - Added support for parallelized fuzzing. Inspired by earlier patch
     from Sebastian Roschke.
 
-  - Added an example in examples/distributed_fuzzing/.
+  - Added an example in experimental/distributed_fuzzing/.
 
 --------------
 Version 0.39b:
@@ -2840,7 +2631,7 @@ Version 0.26b:
   - Added a built-in effort minimizer to get rid of potentially redundant
     inputs,
 
-  - Provided a testcase count minimization script in examples/,
+  - Provided a testcase count minimization script in experimental/,
 
   - Made miscellaneous improvements to directory and file handling.
 

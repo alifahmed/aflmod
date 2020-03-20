@@ -1,129 +1,75 @@
 /*
-   american fuzzy lop++ - LLVM-mode instrumentation pass
-   ---------------------------------------------------
+ Copyright 2015 Google LLC All rights reserved.
 
-   Written by Laszlo Szekeres <lszekeres@google.com> and
-              Michal Zalewski
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at:
 
-   LLVM integration design comes from Laszlo Szekeres. C bits copied-and-pasted
-   from afl-as.c are Michal's fault.
+ http://www.apache.org/licenses/LICENSE-2.0
 
-   Copyright 2015, 2016 Google Inc. All rights reserved.
-   Copyright 2019-2020 AFLplusplus Project. All rights reserved.
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+ */
 
-   Licensed under the Apache License, Version 2.0 (the "License");
-   you may not use this file except in compliance with the License.
-   You may obtain a copy of the License at:
+/*
+ american fuzzy lop - LLVM-mode instrumentation pass
+ ---------------------------------------------------
 
-     http://www.apache.org/licenses/LICENSE-2.0
+ Written by Laszlo Szekeres <lszekeres@google.com> and
+ Michal Zalewski <lcamtuf@google.com>
 
-   This library is plugged into LLVM when invoking clang through afl-clang-fast.
-   It tells the compiler to add code roughly equivalent to the bits discussed
-   in ../afl-as.h.
+ LLVM integration design comes from Laszlo Szekeres. C bits copied-and-pasted
+ from afl-as.c are Michal's fault.
 
+ This library is plugged into LLVM when invoking clang through afl-clang-fast.
+ It tells the compiler to add code roughly equivalent to the bits discussed
+ in ../afl-as.h.
  */
 
 #define AFL_LLVM_PASS
 
-#include "config.h"
-#include "debug.h"
+#include "../config.h"
+#include "../debug.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <vector>
 
-#include <list>
-#include <string>
-#include <fstream>
-#include <sys/time.h>
-
-#include "llvm/Config/llvm-config.h"
-#if LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR < 5
-typedef long double max_align_t;
-#endif
-
+#include "llvm/ADT/Statistic.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/LegacyPassManager.h"
-#include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/MDBuilder.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Transforms/IPO/PassManagerBuilder.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 
-#if LLVM_VERSION_MAJOR > 3 || \
-    (LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR > 4)
-#include "llvm/IR/DebugInfo.h"
-#include "llvm/IR/CFG.h"
-#else
-#include "llvm/DebugInfo.h"
-#include "llvm/Support/CFG.h"
-#endif
-
 using namespace llvm;
 
 namespace {
 
-class AFLCoverage : public ModulePass {
+class AFLCoverage: public ModulePass {
 
- public:
-  static char ID;
-  AFLCoverage() : ModulePass(ID) {
+public:
 
-    char *instWhiteListFilename = getenv("AFL_LLVM_WHITELIST");
-    if (instWhiteListFilename) {
+	static char ID;
+	AFLCoverage() :
+			ModulePass(ID) {
+	}
 
-      std::string   line;
-      std::ifstream fileStream;
-      fileStream.open(instWhiteListFilename);
-      if (!fileStream) report_fatal_error("Unable to open AFL_LLVM_WHITELIST");
-      getline(fileStream, line);
-      while (fileStream) {
+	bool runOnModule(Module &M) override;
 
-        myWhitelist.push_back(line);
-        getline(fileStream, line);
-
-      }
-
-    }
-
-  }
-
-  // ripped from aflgo
-  static bool isBlacklisted(const Function *F) {
-
-    static const char *Blacklist[] = {
-
-        "asan.",
-        "llvm.",
-        "sancov.",
-        "__ubsan_handle_",
-
-    };
-
-    for (auto const &BlacklistFunc : Blacklist) {
-
-      if (F->getName().startswith(BlacklistFunc)) { return true; }
-
-    }
-
-    return false;
-
-  }
-
-  bool runOnModule(Module &M) override;
-
-  // StringRef getPassName() const override {
-
-  //  return "American Fuzzy Lop Instrumentation";
-  // }
-
- protected:
-  std::list<std::string> myWhitelist;
+	// StringRef getPassName() const override {
+	//  return "American Fuzzy Lop Instrumentation";
+	// }
 
 };
 
-}  // namespace
+}
 
 char AFLCoverage::ID = 0;
 
@@ -132,16 +78,6 @@ bool AFLCoverage::runOnModule(Module &M) {
 
   IntegerType *   Int8Ty = IntegerType::getInt8Ty(C);
   IntegerType *   Int32Ty = IntegerType::getInt32Ty(C);
-  struct timeval  tv;
-  struct timezone tz;
-  u32             rand_seed;
-
-  /* Setup random() so we get Actually Random(TM) outputs from AFL_R() */
-  gettimeofday(&tv, &tz);
-  rand_seed = tv.tv_sec ^ tv.tv_usec ^ getpid();
-  AFL_SR(rand_seed);
-
-  /* Show a banner */
 
   char be_quiet = 0;
 
@@ -243,7 +179,7 @@ bool AFLCoverage::runOnModule(Module &M) {
   			Value* cond = IRB.CreateICmpEQ(ConstantInt::get(Int32Ty, -1), idxVal);
 
   			//create then block
-  			auto then = SplitBlockAndInsertIfThen(cond, &(*IP), false, MDBuilder(C).createBranchWeights(1, 100000));
+  			TerminatorInst* then = SplitBlockAndInsertIfThen(cond, &(*IP), false, MDBuilder(C).createBranchWeights(1, 100000));
   			assert(dyn_cast<BranchInst>(then)->isUnconditional());
 
   			//instrument then block
@@ -294,16 +230,15 @@ bool AFLCoverage::runOnModule(Module &M) {
 
 }
 
-static void registerAFLPass(const PassManagerBuilder &,
-                            legacy::PassManagerBase &PM) {
+static void registerAFLPass(const PassManagerBuilder&,
+		legacy::PassManagerBase &PM) {
 
-  PM.add(new AFLCoverage());
+	PM.add(new AFLCoverage());
 
 }
 
 static RegisterStandardPasses RegisterAFLPass(
-    PassManagerBuilder::EP_OptimizerLast, registerAFLPass);
+		PassManagerBuilder::EP_ModuleOptimizerEarly, registerAFLPass);
 
 static RegisterStandardPasses RegisterAFLPass0(
-    PassManagerBuilder::EP_EnabledOnOptLevel0, registerAFLPass);
-
+		PassManagerBuilder::EP_EnabledOnOptLevel0, registerAFLPass);

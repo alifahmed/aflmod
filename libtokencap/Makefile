@@ -1,8 +1,8 @@
 #
-# american fuzzy lop++ - libtokencap
+# american fuzzy lop - libtokencap
 # --------------------------------
 #
-# Originally written by Michal Zalewski
+# Written by Michal Zalewski <lcamtuf@google.com>
 #
 # Copyright 2016 Google Inc. All rights reserved.
 #
@@ -19,43 +19,20 @@ HELPER_PATH  = $(PREFIX)/lib/afl
 VERSION     = $(shell grep '^\#define VERSION ' ../config.h | cut -d '"' -f2)
 
 CFLAGS      ?= -O3 -funroll-loops
-CFLAGS      += -I ../include/ -Wall -D_FORTIFY_SOURCE=2 -g -Wno-pointer-sign
+CFLAGS      += -Wall -D_FORTIFY_SOURCE=2 -g -Wno-pointer-sign
 
-ifeq "$(shell uname)" "Linux"
-  TARGETS = libtokencap.so
-  LDFLAGS     += -ldl
-endif
-ifeq "$(shell uname)" "Darwin"
-  TARGETS = libtokencap.so
-  LDFLAGS     += -ldl
-endif
-ifeq "$(shell uname)" "FreeBSD"
-  TARGETS = libtokencap.so
-endif
-ifeq "$(shell uname)" "OpenBSD"
-  TARGETS = libtokencap.so
-endif
-ifeq "$(shell uname)" "NetBSD"
-  TARGETS = libtokencap.so
-endif
-ifeq "$(shell uname)" "DragonFly"
-  TARGETS = libtokencap.so
-  LDFLAGS     += -ldl
-endif
-all: $(TARGETS)
+all: libtokencap.so
 
-VPATH = ..
 libtokencap.so: libtokencap.so.c ../config.h
-	$(CC) $(CFLAGS) -shared -fPIC $< -o ../$@ $(LDFLAGS)
+	$(CC) $(CFLAGS) -shared -fPIC $< -o $@ $(LDFLAGS)
 
 .NOTPARALLEL: clean
 
 clean:
 	rm -f *.o *.so *~ a.out core core.[1-9][0-9]*
-	rm -f ../libtokencap.so
+	rm -f libtokencap.so
 
 install: all
-	install -m 755 -d $${DESTDIR}$(HELPER_PATH)
-	install -m 755 ../libtokencap.so $${DESTDIR}$(HELPER_PATH)
-	install -m 644 README.tokencap.md $${DESTDIR}$(HELPER_PATH)
+	install -m 755 libtokencap.so $${DESTDIR}$(HELPER_PATH)
+	install -m 644 README.tokencap $${DESTDIR}$(HELPER_PATH)
 
