@@ -195,6 +195,7 @@ static s32 forksrv_pid,               /* PID of the fork server           */
            out_dir_fd = -1;           /* FD of the lock file              */
 
 EXP_ST u8* trace_bits;                /* SHM with instrumentation bitmap  */
+EXP_ST u32 map_used;
 
 EXP_ST u8  virgin_bits[MAP_SIZE],     /* Regions yet untouched by fuzzing */
            virgin_tmout[MAP_SIZE],    /* Bits we haven't seen in tmouts   */
@@ -1478,6 +1479,8 @@ EXP_ST void setup_shm(void) {
   trace_bits = shmat(shm_id, NULL, 0);
 
   if (!trace_bits) PFATAL("shmat() failed");
+
+  map_used = MAP_SIZE;
 
 }
 

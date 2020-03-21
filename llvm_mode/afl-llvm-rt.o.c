@@ -280,6 +280,17 @@ void __sanitizer_cov_trace_pc_guard(uint32_t* guard) {
    ID of 0 as a special value to indicate non-instrumented bits. That may
    still touch the bitmap, but in a fairly harmless way. */
 
+static u8 __afl_used_keys[MAP_SIZE];
+
+uint32_t __afl_get_unique_key(){
+	uint32_t key = 1;
+	do {
+		key = R(MAP_SIZE);
+	} while((key == 0) || (__afl_used_keys[key] == 1));
+	__afl_used_keys[key] = 1;
+	return key;
+}
+
 void __sanitizer_cov_trace_pc_guard_init(uint32_t* start, uint32_t* stop) {
 
   u32 inst_ratio = 100;
@@ -299,12 +310,18 @@ void __sanitizer_cov_trace_pc_guard_init(uint32_t* start, uint32_t* stop) {
      to avoid duplicate calls (which can happen as an artifact of the underlying
      implementation in LLVM). */
 
-  *(start++) = R(MAP_SIZE - 1) + 1;
+  //*(start++) = R(MAP_SIZE - 1) + 1;
+  *(start++) = __afl_get_unique_key();
 
   while (start < stop) {
 
-    if (R(100) < inst_ratio) *start = R(MAP_SIZE - 1) + 1;
-    else *start = 0;
+    if (R(100) < inst_ratio) {
+    	//*start = R(MAP_SIZE - 1) + 1;
+    	*start = __afl_get_unique_key();
+    }
+    else {
+    	*start = 0;
+    }
 
     start++;
 
