@@ -52,6 +52,9 @@
 u8  __afl_area_initial[MAP_SIZE];
 u8* __afl_area_ptr = __afl_area_initial;
 
+u32 __afl_idx_initial[MAP_SIZE + 1];
+u32* __afl_idx_ptr = __afl_idx_initial;
+
 __thread u32 __afl_prev_loc1;
 __thread u32 __afl_prev_loc2;
 
@@ -65,29 +68,22 @@ static u8 is_persistent;
 
 static void __afl_map_shm(void) {
 
-  u8 *id_str = getenv(SHM_ENV_VAR);
-
-  /* If we're running under AFL, attach to the appropriate region, replacing the
-     early-stage __afl_area_initial region that is needed to allow some really
-     hacky .init code to work correctly in projects such as OpenSSL. */
-
+  u8 *id_str = getenv(SHM_ENV_VAR_VAL);
   if (id_str) {
-
     u32 shm_id = atoi(id_str);
-
     __afl_area_ptr = shmat(shm_id, NULL, 0);
-
-    /* Whooooops. */
-
     if (__afl_area_ptr == (void *)-1) _exit(1);
-
-    /* Write something into the bitmap so that even with low AFL_INST_RATIO,
-       our parent doesn't give up on us. */
-
-    //__afl_area_ptr[0] = 1;
-
   }
 
+  id_str = getenv(SHM_ENV_VAR_IDX);
+  if (id_str) {
+    u32 shm_id = atoi(id_str);
+    __afl_idx_ptr = shmat(shm_id, NULL, 0);
+    if (__afl_idx_ptr == (void *)-1) _exit(1);
+  }
+  memset(__afl_idx_ptr, 255, MAP_SIZE * 4);
+  __afl_idx_ptr[MAP_SIZE] = 0;
+  MEM_BARRIER();
 }
 
 
@@ -189,7 +185,6 @@ int __afl_persistent_loop(unsigned int max_cnt) {
     if (is_persistent) {
 
       memset(__afl_area_ptr, 0, MAP_SIZE);
-      //__afl_area_ptr[0] = 1;
       __afl_prev_loc1 = 0;
       __afl_prev_loc2 = 0;
     }
@@ -205,8 +200,6 @@ int __afl_persistent_loop(unsigned int max_cnt) {
     if (--cycle_cnt) {
 
       raise(SIGSTOP);
-
-      //__afl_area_ptr[0] = 1;
       __afl_prev_loc1 = 0;
       __afl_prev_loc2 = 0;
 
@@ -270,7 +263,12 @@ __attribute__((constructor(CONST_PRIO))) void __afl_auto_init(void) {
 void __sanitizer_cov_trace_pc_guard(uint32_t* guard) {
   const uint32_t curr = *guard;
   const uint32_t key = curr ^ __afl_prev_loc1 ^ __afl_prev_loc2;
-  __afl_area_ptr[key]++;
+  uint32_t idx = __afl_idx_ptr[key];
+  if(idx == -1){
+	  idx = __afl_idx_ptr[MAP_SIZE]++;
+	  __afl_idx_ptr[key] = idx;
+  }
+  __afl_area_ptr[idx]++;
   __afl_prev_loc2 = __afl_prev_loc1;
   __afl_prev_loc1 = curr;
 }

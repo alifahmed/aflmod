@@ -264,7 +264,8 @@
 
 /* Environment variable used to pass SHM ID to the called program. */
 
-#define SHM_ENV_VAR         "__AFL_SHM_ID"
+#define SHM_ENV_VAR_VAL         "__AFL_SHM_ID"
+#define SHM_ENV_VAR_IDX         "__AFL_SHM_ID_IDX"
 
 /* Other less interesting, internal-only variables. */
 
