@@ -308,7 +308,7 @@ uint32_t __afl_get_unique_key(){
   do {
     key = R(MAP_SIZE);
   } while ((key == 0) || (__afl_area_ptr[key] == 1));
-  __afl_area_ptr[key] == 1;
+  __afl_area_ptr[key] = 1;
   return key;
 }
 
