@@ -2540,7 +2540,8 @@ static u8 run_target(char **argv, u32 timeout) {
 	MEM_BARRIER();
 
 	tb4 = *(u32*) trace_bits;
-	map_used = ((trace_idx[0] + 63) / 64) * 64;	//align to 64
+	//map_used = ((trace_idx[0] + 63) / 64) * 64;	//align to 64
+	map_used = MAP_SIZE;
 
 #ifdef __x86_64__
 	classify_counts((u64*) trace_bits);
