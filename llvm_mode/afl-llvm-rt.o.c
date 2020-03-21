@@ -105,7 +105,7 @@ static void __afl_map_shm(void) {
       if (__afl_idx_ptr == (void *)-1) _exit(1);
     }
 
-	memset(__afl_area_ptr, 0, MAP_SIZE);
+	//memset(__afl_area_ptr, 0, MAP_SIZE);
 
 }
 
@@ -331,12 +331,14 @@ void __sanitizer_cov_trace_pc_guard_init(uint32_t* start, uint32_t* stop) {
      to avoid duplicate calls (which can happen as an artifact of the underlying
      implementation in LLVM). */
 
-  *(start++) = __afl_get_unique_key();
+  //*(start++) = __afl_get_unique_key();
+  *(start++) = R(MAP_SIZE - 1) + 1;
 
   while (start < stop) {
 
     if (R(100) < inst_ratio) {
-	  *start = __afl_get_unique_key();
+	  //*start = __afl_get_unique_key();
+    	*start = R(MAP_SIZE - 1) + 1;
 	} 
     else *start = 0;
 

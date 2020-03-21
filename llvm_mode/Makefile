@@ -25,7 +25,7 @@ VERSION     = $(shell grep '^\#define VERSION ' ../config.h | cut -d '"' -f2)
 LLVM_CONFIG ?= llvm-config
 
 #CFLAGS      ?= -O0 -g -funroll-loops
-CFLAGS      += -O3 -funroll-loops -march=native -D_FORTIFY_SOURCE=2 \
+CFLAGS      += -O3 -funroll-loops -march=native -D_FORTIFY_SOURCE=2 -Wno-pointer-sign \
                -DAFL_PATH=\"$(HELPER_PATH)\" -DBIN_PATH=\"$(BIN_PATH)\" \
                -DVERSION=\"$(VERSION)\"
 ifdef AFL_TRACE_PC
@@ -33,7 +33,7 @@ ifdef AFL_TRACE_PC
 endif
 
 #CXXFLAGS    ?= -O0 -funroll-loops
-CXXFLAGS    += -O3 -funroll-loops -march=native -D_FORTIFY_SOURCE=2 \
+CXXFLAGS    += -O3 -funroll-loops -march=native -D_FORTIFY_SOURCE=2  -Wno-pointer-sign \
                -DVERSION=\"$(VERSION)\" -Wno-variadic-macros
 
 # Mark nodelete to work around unload bug in upstream LLVM 5.0+

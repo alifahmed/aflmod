@@ -121,9 +121,9 @@ bool AFLCoverage::runOnModule(Module &M) {
         M, Int32Ty, false, GlobalValue::ExternalLinkage, 0, "__afl_prev_loc2", 0,
         GlobalVariable::GeneralDynamicTLSModel, 0, false);
 
-  GlobalVariable *AFLPrevLoc3 = new GlobalVariable(
+/*  GlobalVariable *AFLPrevLoc3 = new GlobalVariable(
         M, Int32Ty, false, GlobalValue::ExternalLinkage, 0, "__afl_prev_loc3", 0,
-        GlobalVariable::GeneralDynamicTLSModel, 0, false);
+        GlobalVariable::GeneralDynamicTLSModel, 0, false);*/
 
   /* Instrument all the things! */
 
@@ -158,11 +158,12 @@ bool AFLCoverage::runOnModule(Module &M) {
   			PrevLoc1->setMetadata(M.getMDKindID("nosanitize"), MDNode::get(C, None));
   			LoadInst *PrevLoc2 = IRB.CreateLoad(AFLPrevLoc2);
   			PrevLoc2->setMetadata(M.getMDKindID("nosanitize"), MDNode::get(C, None));
-  			LoadInst *PrevLoc3 = IRB.CreateLoad(AFLPrevLoc3);
-  			PrevLoc3->setMetadata(M.getMDKindID("nosanitize"), MDNode::get(C, None));
+  			//LoadInst *PrevLoc3 = IRB.CreateLoad(AFLPrevLoc3);
+  			//PrevLoc3->setMetadata(M.getMDKindID("nosanitize"), MDNode::get(C, None));
 
-  			Value* key = IRB.CreateXor(IRB.CreateXor(PrevLoc1, PrevLoc2), IRB.CreateXor(PrevLoc3, CurLoc));
-  			IRB.CreateStore(PrevLoc2, AFLPrevLoc3)->setMetadata(M.getMDKindID("nosanitize"), MDNode::get(C, None));
+  			//Value* key = IRB.CreateXor(IRB.CreateXor(PrevLoc1, PrevLoc2), IRB.CreateXor(PrevLoc3, CurLoc));
+			Value* key = IRB.CreateXor(IRB.CreateXor(PrevLoc1, PrevLoc2), CurLoc);
+//  			IRB.CreateStore(PrevLoc2, AFLPrevLoc3)->setMetadata(M.getMDKindID("nosanitize"), MDNode::get(C, None));
   			IRB.CreateStore(PrevLoc1, AFLPrevLoc2)->setMetadata(M.getMDKindID("nosanitize"), MDNode::get(C, None));
   			IRB.CreateStore(ConstantInt::get(Int32Ty, cur_loc >> 1), AFLPrevLoc1)->setMetadata(M.getMDKindID("nosanitize"), MDNode::get(C, None));
 
