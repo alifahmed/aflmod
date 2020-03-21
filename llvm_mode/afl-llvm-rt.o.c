@@ -118,6 +118,7 @@ static void __afl_map_shm(void) {
 
       //__afl_idx_ptr[0] = 1;
     }
+  __afl_idx_ptr[0] = MAP_SIZE;
 
 }
 
