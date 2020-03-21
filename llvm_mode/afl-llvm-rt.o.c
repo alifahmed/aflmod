@@ -64,7 +64,7 @@ u32* __afl_idx_ptr = __afl_idx_initial;
 
 __thread u32 __afl_prev_loc1 = 3;
 __thread u32 __afl_prev_loc2 = 15;
-__thread u32 __afl_prev_loc3 = 27;
+//__thread u32 __afl_prev_loc3 = 27;
 
 
 /* Running in persistent mode? */
@@ -222,7 +222,7 @@ int __afl_persistent_loop(unsigned int max_cnt) {
       memset(__afl_area_ptr, 0, __afl_idx_ptr[0]);
       __afl_prev_loc1 = 3;
       __afl_prev_loc2 = 15;
-      __afl_prev_loc3 = 27;
+      //__afl_prev_loc3 = 27;
     }
 
     cycle_cnt  = max_cnt;
@@ -239,7 +239,7 @@ int __afl_persistent_loop(unsigned int max_cnt) {
 
       __afl_prev_loc1 = 3;
       __afl_prev_loc2 = 15;
-      __afl_prev_loc3 = 27;
+      //__afl_prev_loc3 = 27;
 
       return 1;
 
@@ -299,43 +299,46 @@ __attribute__((constructor(CONST_PRIO))) void __afl_auto_init(void) {
    The first function (__sanitizer_cov_trace_pc_guard) is called back on every
    edge (as opposed to every basic block). */
 
-//void __sanitizer_cov_trace_pc_guard(uint32_t* guard) {
-// __afl_area_ptr[*guard]++;
-//}
+void __sanitizer_cov_trace_pc_guard(uint32_t* guard) {
+//  const uint32_t curr = *guard;
+//  const uint32_t key = __afl_prev_loc1 ^ __afl_prev_loc2 ^ curr;
+//  if(__afl_idx_ptr[key]
+  __afl_area_ptr[*guard]++;
+}
 
 
 /* Init callback. Populates instrumentation IDs. Note that we're using
    ID of 0 as a special value to indicate non-instrumented bits. That may
    still touch the bitmap, but in a fairly harmless way. */
 
-//void __sanitizer_cov_trace_pc_guard_init(uint32_t* start, uint32_t* stop) {
-//
-//  u32 inst_ratio = 100;
-//  u8* x;
-//
-//  if (start == stop || *start) return;
-//
-//  x = getenv("AFL_INST_RATIO");
-//  if (x) inst_ratio = atoi(x);
-//
-//  if (!inst_ratio || inst_ratio > 100) {
-//    fprintf(stderr, "[-] ERROR: Invalid AFL_INST_RATIO (must be 1-100).\n");
-//    abort();
-//  }
+void __sanitizer_cov_trace_pc_guard_init(uint32_t* start, uint32_t* stop) {
+
+  u32 inst_ratio = 100;
+  u8* x;
+
+  if (start == stop || *start) return;
+
+  x = getenv("AFL_INST_RATIO");
+  if (x) inst_ratio = atoi(x);
+
+  if (!inst_ratio || inst_ratio > 100) {
+    fprintf(stderr, "[-] ERROR: Invalid AFL_INST_RATIO (must be 1-100).\n");
+    abort();
+  }
 
   /* Make sure that the first element in the range is always set - we use that
      to avoid duplicate calls (which can happen as an artifact of the underlying
      implementation in LLVM). */
 
-//  *(start++) = R(MAP_SIZE - 1) + 1;
-//
-//  while (start < stop) {
-//
-//    if (R(100) < inst_ratio) *start = R(MAP_SIZE - 1) + 1;
-//    else *start = 0;
-//
-//    start++;
-//
-//  }
-//
-//}
+  *(start++) = R(MAP_SIZE - 1) + 1;
+
+  while (start < stop) {
+
+    if (R(100) < inst_ratio) *start = R(MAP_SIZE - 1) + 1;
+    else *start = 0;
+
+    start++;
+
+  }
+
+}
