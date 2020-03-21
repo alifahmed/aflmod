@@ -301,10 +301,16 @@ __attribute__((constructor(CONST_PRIO))) void __afl_auto_init(void) {
    edge (as opposed to every basic block). */
 
 void __sanitizer_cov_trace_pc_guard(uint32_t* guard) {
-//  const uint32_t curr = *guard;
-//  const uint32_t key = __afl_prev_loc1 ^ __afl_prev_loc2 ^ curr;
-//  if(__afl_idx_ptr[key]
-  __afl_area_ptr[*guard]++;
+  const uint32_t curr = *guard;
+  const uint32_t key = __afl_prev_loc1 ^ __afl_prev_loc2 ^ curr;
+  __afl_prev_loc2 = __afl_prev_loc1;
+  __afl_prev_loc1 = curr;
+  uint32_t idx = __afl_idx_ptr[key];
+  if(idx == -1){
+    idx = __afl_idx_ptr[0]++;
+    __afl_idx_ptr[key] = idx;
+  }
+  __afl_area_ptr[idx]++;
 }
 
 
