@@ -1,14 +1,13 @@
 /*
-   american fuzzy lop++ - LLVM instrumentation bootstrap
+   american fuzzy lop - LLVM instrumentation bootstrap
    ---------------------------------------------------
 
    Written by Laszlo Szekeres <lszekeres@google.com> and
-              Michal Zalewski
+              Michal Zalewski <lcamtuf@google.com>
 
    LLVM integration design comes from Laszlo Szekeres.
 
    Copyright 2015, 2016 Google Inc. All rights reserved.
-   Copyright 2019-2020 AFLplusplus Project. All rights reserved.
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -20,12 +19,8 @@
 
 */
 
-#ifdef __ANDROID__
-#include "android-ashmem.h"
-#endif
-#include "config.h"
-#include "types.h"
-#include "cmplog.h"
+#include "../config.h"
+#include "../types.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -33,7 +28,6 @@
 #include <unistd.h>
 #include <string.h>
 #include <assert.h>
-#include <stdint.h>
 
 #include <sys/mman.h>
 #include <sys/shm.h>
@@ -45,44 +39,32 @@
    the LLVM-generated runtime initialization pass, not before. */
 
 #ifdef USE_TRACE_PC
-#define CONST_PRIO 5
+#  define CONST_PRIO 5
 #else
-#define CONST_PRIO 0
-#endif                                                     /* ^USE_TRACE_PC */
+#  define CONST_PRIO 0
+#endif /* ^USE_TRACE_PC */
 
-#include <sys/mman.h>
-#include <fcntl.h>
 
 /* Globals needed by the injected instrumentation. The __afl_area_initial region
-   is used for instrumentation output before __afl_map_shm() has a chance to
-   run. It will end up as .comm, so it shouldn't be too wasteful. */
-
+   is used for instrumentation output before __afl_map_shm() has a chance to run.
+   It will end up as .comm, so it shouldn't be too wasteful. */
 
 u8  __afl_area_initial[MAP_SIZE];
 u8* __afl_area_ptr = __afl_area_initial;
 
-u32  __afl_idx_initial[MAP_SIZE];
-u32* __afl_idx_ptr = __afl_idx_initial;
+__thread u32 __afl_prev_loc;
 
-#ifdef __ANDROID__
-u32 __afl_prev_loc1;
-u32 __afl_prev_loc2;
-u32 __afl_prev_loc3;
-#else
-__thread u32 __afl_prev_loc1;
-__thread u32 __afl_prev_loc2;
-__thread u32 __afl_prev_loc3;
-#endif
 
 /* Running in persistent mode? */
 
 static u8 is_persistent;
 
+
 /* SHM setup. */
 
 static void __afl_map_shm(void) {
 
-  u8* id_str = getenv(SHM_ENV_VAR);
+  u8 *id_str = getenv(SHM_ENV_VAR);
 
   /* If we're running under AFL, attach to the appropriate region, replacing the
      early-stage __afl_area_initial region that is needed to allow some really
@@ -90,67 +72,32 @@ static void __afl_map_shm(void) {
 
   if (id_str) {
 
-#ifdef USEMMAP
-    const char*    shm_file_path = id_str;
-    int            shm_fd = -1;
-    unsigned char* shm_base = NULL;
-
-    /* create the shared memory segment as if it was a file */
-    shm_fd = shm_open(shm_file_path, O_RDWR, 0600);
-    if (shm_fd == -1) {
-
-      printf("shm_open() failed\n");
-      exit(1);
-
-    }
-
-    /* map the shared memory segment to the address space of the process */
-    shm_base = mmap(0, MAP_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
-    if (shm_base == MAP_FAILED) {
-
-      close(shm_fd);
-      shm_fd = -1;
-
-      printf("mmap() failed\n");
-      exit(2);
-
-    }
-
-    __afl_area_ptr = shm_base;
-#else
     u32 shm_id = atoi(id_str);
 
     __afl_area_ptr = shmat(shm_id, NULL, 0);
-#endif
 
     /* Whooooops. */
 
-    if (__afl_area_ptr == (void*)-1) _exit(1);
+    if (__afl_area_ptr == (void *)-1) _exit(1);
 
     /* Write something into the bitmap so that even with low AFL_INST_RATIO,
        our parent doesn't give up on us. */
 
-  }
+    __afl_area_ptr[0] = 1;
 
-  id_str = getenv(SHM_IDX_ENV_VAR);
-  if (id_str) {
-    u32 shm_id = atoi(id_str);
-    __afl_idx_ptr = shmat(shm_id, NULL, 0);
-    if (__afl_idx_ptr == (void*)-1) _exit(1);
   }
 
 }
+
 
 /* Fork server logic. */
 
 static void __afl_start_forkserver(void) {
 
   static u8 tmp[4];
-  s32       child_pid;
+  s32 child_pid;
 
-  u8 child_stopped = 0;
-
-  void (*old_sigchld_handler)(int) = 0;  // = signal(SIGCHLD, SIG_DFL);
+  u8  child_stopped = 0;
 
   /* Phone home and tell the parent that we're OK. If parent isn't there,
      assume we're not running in forkserver mode and just execute program. */
@@ -171,10 +118,8 @@ static void __afl_start_forkserver(void) {
        process. */
 
     if (child_stopped && was_killed) {
-
       child_stopped = 0;
       if (waitpid(child_pid, &status, 0) < 0) _exit(1);
-
     }
 
     if (!child_stopped) {
@@ -188,12 +133,10 @@ static void __afl_start_forkserver(void) {
 
       if (!child_pid) {
 
-        signal(SIGCHLD, old_sigchld_handler);
-
         close(FORKSRV_FD);
         close(FORKSRV_FD + 1);
         return;
-
+  
       }
 
     } else {
@@ -227,6 +170,7 @@ static void __afl_start_forkserver(void) {
 
 }
 
+
 /* A simplified persistent mode handler, used as explained in README.llvm. */
 
 int __afl_persistent_loop(unsigned int max_cnt) {
@@ -244,13 +188,11 @@ int __afl_persistent_loop(unsigned int max_cnt) {
     if (is_persistent) {
 
       memset(__afl_area_ptr, 0, MAP_SIZE);
-      //__afl_area_ptr[0] = 1;
-      __afl_prev_loc1 = 0;
-      __afl_prev_loc2 = 0;
-      __afl_prev_loc3 = 0;
+      __afl_area_ptr[0] = 1;
+      __afl_prev_loc = 0;
     }
 
-    cycle_cnt = max_cnt;
+    cycle_cnt  = max_cnt;
     first_pass = 0;
     return 1;
 
@@ -262,10 +204,8 @@ int __afl_persistent_loop(unsigned int max_cnt) {
 
       raise(SIGSTOP);
 
-      //__afl_area_ptr[0] = 1;
-      __afl_prev_loc1 = 0;
-      __afl_prev_loc2 = 0;
-      __afl_prev_loc3 = 0;
+      __afl_area_ptr[0] = 1;
+      __afl_prev_loc = 0;
 
       return 1;
 
@@ -285,6 +225,7 @@ int __afl_persistent_loop(unsigned int max_cnt) {
 
 }
 
+
 /* This one can be called from user code when deferred forkserver mode
     is enabled. */
 
@@ -302,6 +243,7 @@ void __afl_manual_init(void) {
 
 }
 
+
 /* Proper initialization routine. */
 
 __attribute__((constructor(CONST_PRIO))) void __afl_auto_init(void) {
@@ -314,6 +256,7 @@ __attribute__((constructor(CONST_PRIO))) void __afl_auto_init(void) {
 
 }
 
+
 /* The following stuff deals with supporting -fsanitize-coverage=trace-pc-guard.
    It remains non-operational in the traditional, plugin-backed LLVM mode.
    For more info about 'trace-pc-guard', see README.llvm.
@@ -322,10 +265,9 @@ __attribute__((constructor(CONST_PRIO))) void __afl_auto_init(void) {
    edge (as opposed to every basic block). */
 
 void __sanitizer_cov_trace_pc_guard(uint32_t* guard) {
-
   __afl_area_ptr[*guard]++;
-
 }
+
 
 /* Init callback. Populates instrumentation IDs. Note that we're using
    ID of 0 as a special value to indicate non-instrumented bits. That may
@@ -342,10 +284,8 @@ void __sanitizer_cov_trace_pc_guard_init(uint32_t* start, uint32_t* stop) {
   if (x) inst_ratio = atoi(x);
 
   if (!inst_ratio || inst_ratio > 100) {
-
     fprintf(stderr, "[-] ERROR: Invalid AFL_INST_RATIO (must be 1-100).\n");
     abort();
-
   }
 
   /* Make sure that the first element in the range is always set - we use that
@@ -356,14 +296,11 @@ void __sanitizer_cov_trace_pc_guard_init(uint32_t* start, uint32_t* stop) {
 
   while (start < stop) {
 
-    if (R(100) < inst_ratio)
-      *start = R(MAP_SIZE - 1) + 1;
-    else
-      *start = 0;
+    if (R(100) < inst_ratio) *start = R(MAP_SIZE - 1) + 1;
+    else *start = 0;
 
     start++;
 
   }
 
 }
-
