@@ -1473,7 +1473,9 @@ EXP_ST void setup_shm(void) {
 	memset(trace_bits, 0, MAP_SIZE);
 	memset(trace_idx, 255, MAP_SIZE * 4);
 	trace_idx[0] = 0;
-	map_used = 0;
+	//map_used = 0;
+	map_used = MAP_SIZE;
+	MEM_BARRIER();
 }
 
 /* Load postprocessor, if available. */
