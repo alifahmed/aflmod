@@ -41,16 +41,10 @@
 #include <sys/wait.h>
 #include <sys/types.h>
 
-/* This is a somewhat ugly hack for the experimental 'trace-pc-guard' mode.
-   Basically, we need to make sure that the forkserver is initialized after
-   the LLVM-generated runtime initialization pass, not before. */
-
-#ifdef USE_TRACE_PC
 #  define CONST_PRIO 5
-#else
-#  define CONST_PRIO 0
-#endif /* ^USE_TRACE_PC */
 
+#define INIT_LOC1		41
+#define INIT_LOC2		13
 
 /* Globals needed by the injected instrumentation. The __afl_area_initial region
    is used for instrumentation output before __afl_map_shm() has a chance to run.
@@ -62,9 +56,8 @@ u8* __afl_area_ptr = __afl_area_initial;
 u32  __afl_idx_initial[MAP_SIZE];
 u32* __afl_idx_ptr = __afl_idx_initial;
 
-__thread u32 __afl_prev_loc1 = 3;
-__thread u32 __afl_prev_loc2 = 15;
-//__thread u32 __afl_prev_loc3 = 27;
+__thread u32 __afl_prev_loc1 = INIT_LOC1;
+__thread u32 __afl_prev_loc2 = INIT_LOC2;
 
 
 /* Running in persistent mode? */
@@ -92,11 +85,6 @@ static void __afl_map_shm(void) {
 
     if (__afl_area_ptr == (void *)-1) _exit(1);
 
-    /* Write something into the bitmap so that even with low AFL_INST_RATIO,
-       our parent doesn't give up on us. */
-
-    //__afl_area_ptr[0] = 1;
-
   }
 
 
@@ -115,9 +103,10 @@ static void __afl_map_shm(void) {
       /* Whooooops. */
 
       if (__afl_idx_ptr == (void *)-1) _exit(1);
-
-      //__afl_idx_ptr[0] = 1;
     }
+
+	memset(__afl_area_ptr, 0, MAP_SIZE);
+
 }
 
 
@@ -219,9 +208,8 @@ int __afl_persistent_loop(unsigned int max_cnt) {
     if (is_persistent) {
 
       memset(__afl_area_ptr, 0, __afl_idx_ptr[0]);
-      __afl_prev_loc1 = 3;
-      __afl_prev_loc2 = 15;
-      //__afl_prev_loc3 = 27;
+      __afl_prev_loc1 = INIT_LOC1;
+      __afl_prev_loc2 = INIT_LOC2;
     }
 
     cycle_cnt  = max_cnt;
@@ -236,9 +224,8 @@ int __afl_persistent_loop(unsigned int max_cnt) {
 
       raise(SIGSTOP);
 
-      __afl_prev_loc1 = 3;
-      __afl_prev_loc2 = 15;
-      //__afl_prev_loc3 = 27;
+      __afl_prev_loc1 = INIT_LOC1;
+      __afl_prev_loc2 = INIT_LOC2;
 
       return 1;
 
@@ -316,6 +303,15 @@ void __sanitizer_cov_trace_pc_guard(uint32_t* guard) {
    ID of 0 as a special value to indicate non-instrumented bits. That may
    still touch the bitmap, but in a fairly harmless way. */
 
+uint32_t __afl_get_unique_key(){
+  uint32_t key = 1;
+  do {
+    key = R(MAP_SIZE);
+  } while ((key == 0) || (__afl_area_ptr[key] == 1));
+  __afl_area_ptr[key] == 1;
+  return key;
+}
+
 void __sanitizer_cov_trace_pc_guard_init(uint32_t* start, uint32_t* stop) {
 
   u32 inst_ratio = 100;
@@ -335,11 +331,13 @@ void __sanitizer_cov_trace_pc_guard_init(uint32_t* start, uint32_t* stop) {
      to avoid duplicate calls (which can happen as an artifact of the underlying
      implementation in LLVM). */
 
-  *(start++) = R(MAP_SIZE - 1) + 1;
+  *(start++) = __afl_get_unique_key();
 
   while (start < stop) {
 
-    if (R(100) < inst_ratio) *start = R(MAP_SIZE - 1) + 1;
+    if (R(100) < inst_ratio) {
+	  *start = __afl_get_unique_key();
+	} 
     else *start = 0;
 
     start++;
