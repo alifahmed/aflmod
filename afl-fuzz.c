@@ -1206,7 +1206,7 @@ static void simplify_trace(u64* mem) {
 
   }
 
-  memset(mem + map_used, 1, MAP_SIZE - map_used);
+  //memset(mem + map_used, 1, MAP_SIZE - map_used);
 }
 
 #else
