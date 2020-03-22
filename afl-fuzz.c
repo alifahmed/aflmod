@@ -195,6 +195,7 @@ static s32 forksrv_pid,               /* PID of the fork server           */
            out_dir_fd = -1;           /* FD of the lock file              */
 
 EXP_ST u8* trace_bits;                /* SHM with instrumentation bitmap  */
+EXP_ST u32* trace_idx;
 EXP_ST u32 map_used;
 
 EXP_ST u8  virgin_bits[MAP_SIZE],     /* Regions yet untouched by fuzzing */
@@ -1257,7 +1258,7 @@ EXP_ST void init_count_class16(void) {
 
 static inline void classify_counts(u64* mem) {
 
-  u32 i = MAP_SIZE >> 3;
+  u32 i = map_used >> 3;
 
   while (i--) {
 
@@ -1284,7 +1285,7 @@ static inline void classify_counts(u64* mem) {
 
 static inline void classify_counts(u32* mem) {
 
-  u32 i = MAP_SIZE >> 2;
+  u32 i = map_used >> 2;
 
   while (i--) {
 
@@ -1482,10 +1483,12 @@ EXP_ST void setup_shm(void) {
   ck_free(shm_str);
 
   trace_bits = shmat(shm_id_val, NULL, 0);
-
   if (!trace_bits) PFATAL("shmat() failed");
-  map_used = MAP_SIZE;
 
+  trace_idx = shmat(shm_id_idx, NULL, 0);
+  if (!trace_idx) PFATAL("shmat() failed");
+
+  map_used = 0;
 }
 
 
@@ -2389,7 +2392,7 @@ static u8 run_target(char** argv, u32 timeout) {
      must prevent any earlier operations from venturing into that
      territory. */
 
-  memset(trace_bits, 0, MAP_SIZE);
+  memset(trace_bits, 0, map_used);
   MEM_BARRIER();
 
   /* If we're running in "dumb" mode, we can't rely on the fork server
@@ -2541,6 +2544,7 @@ static u8 run_target(char** argv, u32 timeout) {
   MEM_BARRIER();
 
   tb4 = *(u32*)trace_bits;
+  map_used = (((trace_idx[MAP_SIZE] + 63) / 64) * 64);
 
 #ifdef __x86_64__
   classify_counts((u64*)trace_bits);
