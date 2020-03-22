@@ -1237,7 +1237,7 @@ static void simplify_trace(u32* mem) {
    preprocessing step for any newly acquired traces. Called on every exec,
    must be fast. */
 
-static const u8 count_class_lookup8[256] = {
+/*static const u8 count_class_lookup8[256] = {
 
   [0]           = 0,
   [1]           = 1,
@@ -1264,7 +1264,7 @@ EXP_ST void init_count_class16(void) {
         (count_class_lookup8[b1] << 8) |
         count_class_lookup8[b2];
 
-}
+}*/
 
 
 /* Do few common stuffs at once:
@@ -1278,28 +1278,27 @@ EXP_ST void init_count_class16(void) {
 
 static inline void classify_counts(u64* mem) {
 
+  static const u64 mask1 = 0xFF00FF00FF00FF00ULL;
+  static const u64 mask2 = 0x00FF00FF00FF00FFULL;
+
   u32 i = map_used >> 3;
-
   while (i--) {
-
-    /* Optimize for sparse bitmaps. */
-
-    if (*mem) {
-
-      u16* mem16 = (u16*)mem;
-
-      mem16[0] = count_class_lookup16[mem16[0]];
-      mem16[1] = count_class_lookup16[mem16[1]];
-      mem16[2] = count_class_lookup16[mem16[2]];
-      mem16[3] = count_class_lookup16[mem16[3]];
-
+    const u64 x = *mem;
+    if(x){
+      u64 x1 = x & mask1;     //even bytes
+      u64 x2 = x & mask2;     //odd bytes
+      x1 |= x1 >> 1;
+      x1 |= x1 >> 2;
+      x1 |= x1 >> 4;
+      x2 |= x2 >> 1;
+      x2 |= x2 >> 2;
+      x2 |= x2 >> 4;
+      *mem = (x1 & mask1) | (x2 & mask2);
     }
-
     mem++;
-
   }
-
 }
+
 
 #else
 
@@ -11968,7 +11967,7 @@ break;
 
   setup_post();
   setup_shm();
-  init_count_class16();
+  //init_count_class16();
 
   setup_dirs_fds();
   read_testcases();
