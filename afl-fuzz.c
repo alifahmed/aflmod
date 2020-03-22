@@ -995,14 +995,14 @@ static inline u8 has_new_bits(u8* virgin_map) {
   u64* current = (u64*)trace_bits;
   u64* virgin  = (u64*)virgin_map;
 
-  u32  i = (MAP_SIZE >> 3);
+  u32  i = (map_used >> 3);
 
 #else
 
   u32* current = (u32*)trace_bits;
   u32* virgin  = (u32*)virgin_map;
 
-  u32  i = (MAP_SIZE >> 2);
+  u32  i = (map_used >> 2);
 
 #endif /* ^__x86_64__ */
 
@@ -2706,7 +2706,7 @@ static u8 calibrate_case(char** argv, struct queue_entry* q, u8* use_mem,
       goto abort_calibration;
     }
 
-    cksum = hash32(trace_bits, MAP_SIZE, HASH_CONST);
+    cksum = hash32(trace_bits, map_used, HASH_CONST);
 
     if (q->exec_cksum != cksum) {
 
@@ -3270,7 +3270,7 @@ static u8 save_if_interesting(char** argv, void* mem, u32 len, u8 fault) {
       queued_with_cov++;
     }
 
-    queue_top->exec_cksum = hash32(trace_bits, MAP_SIZE, HASH_CONST);
+    queue_top->exec_cksum = hash32(trace_bits, map_used, HASH_CONST);
 
     /* Try to calibrate inline; this also calls update_bitmap_score() when
        successful. */
@@ -4702,7 +4702,7 @@ static u8 trim_case(char** argv, struct queue_entry* q, u8* in_buf) {
 
       /* Note that we don't keep track of crashes or hangs here; maybe TODO? */
 
-      cksum = hash32(trace_bits, MAP_SIZE, HASH_CONST);
+      cksum = hash32(trace_bits, map_used, HASH_CONST);
 
       /* If the deletion had no impact on the trace, make it permanent. This
          isn't perfect for variable-path inputs, but we're just making a
@@ -5344,7 +5344,7 @@ static u8 normal_fuzz_one(char** argv) {
 
 		if (!dumb_mode && (stage_cur & 7) == 7) {
 
-			u32 cksum = hash32(trace_bits, MAP_SIZE, HASH_CONST);
+			u32 cksum = hash32(trace_bits, map_used, HASH_CONST);
 
 			if (stage_cur == stage_max - 1 && cksum == prev_cksum) {
 
@@ -5501,7 +5501,7 @@ static u8 normal_fuzz_one(char** argv) {
 			   without wasting time on checksums. */
 
 			if (!dumb_mode && len >= EFF_MIN_LEN)
-				cksum = hash32(trace_bits, MAP_SIZE, HASH_CONST);
+				cksum = hash32(trace_bits, map_used, HASH_CONST);
 			else
 				cksum = ~queue_cur->exec_cksum;
 
@@ -7073,7 +7073,7 @@ static u8 pilot_fuzzing(char** argv) {
 
 			if (!dumb_mode && (stage_cur & 7) == 7) {
 
-				u32 cksum = hash32(trace_bits, MAP_SIZE, HASH_CONST);
+				u32 cksum = hash32(trace_bits, map_used, HASH_CONST);
 
 				if (stage_cur == stage_max - 1 && cksum == prev_cksum) {
 
@@ -7250,7 +7250,7 @@ static u8 pilot_fuzzing(char** argv) {
 				   without wasting time on checksums. */
 
 				if (!dumb_mode && len >= EFF_MIN_LEN)
-					cksum = hash32(trace_bits, MAP_SIZE, HASH_CONST);
+					cksum = hash32(trace_bits, map_used, HASH_CONST);
 				else
 					cksum = ~queue_cur->exec_cksum;
 
@@ -8904,7 +8904,7 @@ static u8 core_fuzzing(char** argv) {
 
 			if (!dumb_mode && (stage_cur & 7) == 7) {
 
-				u32 cksum = hash32(trace_bits, MAP_SIZE, HASH_CONST);
+				u32 cksum = hash32(trace_bits, map_used, HASH_CONST);
 
 				if (stage_cur == stage_max - 1 && cksum == prev_cksum) {
 
@@ -9067,7 +9067,7 @@ static u8 core_fuzzing(char** argv) {
 				   without wasting time on checksums. */
 
 				if (!dumb_mode && len >= EFF_MIN_LEN)
-					cksum = hash32(trace_bits, MAP_SIZE, HASH_CONST);
+					cksum = hash32(trace_bits, map_used, HASH_CONST);
 				else
 					cksum = ~queue_cur->exec_cksum;
 
