@@ -1110,6 +1110,7 @@ static u32 count_zero_bits(u64* mem) {
    new paths. */
 
 static u32 count_bytes(u8* mem) {
+  if(saved_bytes && (mem == trace_bits)) return saved_bytes;
 
   u32* ptr = (u32*)mem;
   u32  i   = (map_used >> 2);
@@ -1127,6 +1128,7 @@ static u32 count_bytes(u8* mem) {
 
   }
 
+  if(mem == trace_bits) saved_bytes = ret;
   return ret;
 
 }
@@ -1288,10 +1290,10 @@ static inline void classify_counts(u64* mem) {
       u64 x1 = x & mask1;     //even bytes
       u64 x2 = x & mask2;     //odd bytes
       x1 |= x1 >> 1;
-      x1 |= x1 >> 2;
-      x1 |= x1 >> 4;
       x2 |= x2 >> 1;
+      x1 |= x1 >> 2;
       x2 |= x2 >> 2;
+      x1 |= x1 >> 4;
       x2 |= x2 >> 4;
       *mem = (x1 & mask1) | (x2 & mask2);
     }
@@ -2412,6 +2414,7 @@ static u8 run_target(char** argv, u32 timeout) {
      territory. */
 
   saved_hash = 0;
+  saved_bytes = 0;
   memset(trace_bits, 0, map_used);
   MEM_BARRIER();
 
@@ -11623,7 +11626,7 @@ int main(int argc, char** argv) {
   struct timeval tv;
   struct timezone tz;
 
-  SAYF(cCYA "afl-fuzz " cBRI VERSION cRST " by <lcamtuf@google.com>\n");
+  SAYF(cCYA "MOptCGS " cBRI VERSION cRST " by <alifahmed@virginia.edu>\n");
 
   doc_path = access(DOC_PATH, F_OK) ? "docs" : DOC_PATH;
 
@@ -12013,14 +12016,7 @@ break;
     if (stop_soon) goto stop_fuzzing;
   }
 
-
-
-
-    srandom(time(NULL));
-
-
-
-
+  srandom(time(NULL));
 
   while (1) {
 
