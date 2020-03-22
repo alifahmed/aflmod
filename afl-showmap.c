@@ -56,7 +56,7 @@ static u8 *out_file,                  /* Trace output file                 */
           *at_file;                   /* Substitution string for @@        */
 
 static u32 exec_tmout;                /* Exec timeout (ms)                 */
-
+u32 saved_hash = 0;
 static u64 mem_limit = MEM_LIMIT;     /* Memory limit (MB)                 */
 
 static s32 shm_id;                    /* ID of the SHM region              */

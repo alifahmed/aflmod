@@ -55,6 +55,7 @@ static u8 *in_file,                   /* Analyzer input test case          */
           *doc_path;                  /* Path to docs                      */
 
 static u8 *in_data;                   /* Input data for analysis           */
+u32 saved_hash = 0;
 
 static u32 in_len,                    /* Input data length                 */
            orig_cksum,                /* Original checksum                 */
