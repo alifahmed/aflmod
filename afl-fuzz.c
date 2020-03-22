@@ -472,7 +472,7 @@ static u64 get_cur_time_us(void) {
 
 static inline u32 UR(u32 limit) {
 
-  if (unlikely(!rand_cnt--)) {
+  /*if (unlikely(!rand_cnt--)) {
 
     u32 seed[2];
 
@@ -481,7 +481,7 @@ static inline u32 UR(u32 limit) {
     srandom(seed[0]);
     rand_cnt = (RESEED_RNG / 2) + (seed[1] % RESEED_RNG);
 
-  }
+  }*/
 
   return random() % limit;
 

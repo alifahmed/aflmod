@@ -268,7 +268,9 @@ void __sanitizer_cov_trace_pc_guard(uint32_t* guard) {
 	  idx = __afl_idx_ptr[MAP_SIZE]++;
 	  __afl_idx_ptr[key] = idx;
   }
-  __afl_area_ptr[idx]++;
+  uint32_t res = __afl_area_ptr[idx] + 1;
+  res |= -(res < 1);
+  __afl_area_ptr[idx] = res;
   __afl_prev_loc2 = __afl_prev_loc1;
   __afl_prev_loc1 = curr;
 }
