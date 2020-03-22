@@ -32,9 +32,9 @@
 #ifdef __x86_64__
 
 #include <immintrin.h>
-
+extern u32 saved_hash;
 static inline u32 hash32(const void* key, u32 len, u32 seed) {
-
+	if(saved_hash) return saved_hash;
     u64 crc = seed;
     u64 crcCurr = seed;
     
@@ -48,7 +48,7 @@ static inline u32 hash32(const void* key, u32 len, u32 seed) {
             crc = crcCurr;
         }
     }
-    
+    saved_hash = crc;
     return crc;
 }
 

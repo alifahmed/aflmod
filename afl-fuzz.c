@@ -45,6 +45,7 @@
 #include <termios.h>
 #include <dlfcn.h>
 #include <sched.h>
+#include <assert.h>
 
 #include <sys/wait.h>
 #include <sys/time.h>
@@ -157,6 +158,8 @@ static u32 hang_tmout = EXEC_TIMEOUT; /* Timeout used for hang det (ms)   */
 EXP_ST u64 mem_limit  = MEM_LIMIT;    /* Memory cap for child (MB)        */
 
 static u32 stats_update_freq = 1;     /* Stats update frequency (execs)   */
+u32 saved_hash = 0;
+u32 saved_bytes = 0;
 
 EXP_ST u8  skip_deterministic,        /* Skip deterministic stages?       */
            force_deterministic,       /* Force deterministic stages?      */
@@ -1014,7 +1017,7 @@ static inline u8 has_new_bits(u8* virgin_map) {
        that have not been already cleared from the virgin map - since this will
        almost always be the case. */
 
-    if (unlikely(*current) && unlikely(*current & *virgin)) {
+    if (*current && (*current & *virgin)) {
 
       if (likely(ret < 2)) {
 
@@ -1061,32 +1064,42 @@ static inline u8 has_new_bits(u8* virgin_map) {
 /* Count the number of bits set in the provided bitmap. Used for the status
    screen several times every second, does not have to be fast. */
 
-static u32 count_bits(u8* mem) {
+//static u32 count_bits(u8* mem) {
+//
+//  u32* ptr = (u32*)mem;
+//  u32  i   = (MAP_SIZE >> 2);
+//  u32  ret = 0;
+//
+//  while (i--) {
+//
+//    u32 v = *(ptr++);
+//
+//    /* This gets called on the inverse, virgin bitmap; optimize for sparse
+//       data. */
+//
+//    if (v == 0xffffffff) {
+//      ret += 32;
+//      continue;
+//    }
+//
+//    v -= ((v >> 1) & 0x55555555);
+//    v = (v & 0x33333333) + ((v >> 2) & 0x33333333);
+//    ret += (((v + (v >> 4)) & 0xF0F0F0F) * 0x01010101) >> 24;
+//
+//  }
+//
+//  return ret;
+//
+//}
 
-  u32* ptr = (u32*)mem;
-  u32  i   = (MAP_SIZE >> 2);
-  u32  ret = 0;
-
-  while (i--) {
-
-    u32 v = *(ptr++);
-
-    /* This gets called on the inverse, virgin bitmap; optimize for sparse
-       data. */
-
-    if (v == 0xffffffff) {
-      ret += 32;
-      continue;
+/* Count zero bits in virgin map */
+static u32 count_zero_bits(u64* mem) {
+    u32 ret = 0;
+    const u32 lim = map_used >> 3;
+    for(u32 i = 0; i < lim; i++){
+        ret += 64 - __builtin_popcountll(mem[i]);
     }
-
-    v -= ((v >> 1) & 0x55555555);
-    v = (v & 0x33333333) + ((v >> 2) & 0x33333333);
-    ret += (((v + (v >> 4)) & 0xF0F0F0F) * 0x01010101) >> 24;
-
-  }
-
-  return ret;
-
+    return ret;
 }
 
 
@@ -1099,7 +1112,7 @@ static u32 count_bits(u8* mem) {
 static u32 count_bytes(u8* mem) {
 
   u32* ptr = (u32*)mem;
-  u32  i   = (MAP_SIZE >> 2);
+  u32  i   = (map_used >> 2);
   u32  ret = 0;
 
   while (i--) {
@@ -1254,6 +1267,13 @@ EXP_ST void init_count_class16(void) {
 }
 
 
+/* Do few common stuffs at once:
+ * 1. Classify to buckets
+ * 2. Checks if has new bits
+ * 3. Calculates hash32
+ * 4. Count bytes
+ */
+
 #ifdef __x86_64__
 
 static inline void classify_counts(u64* mem) {
@@ -1264,7 +1284,7 @@ static inline void classify_counts(u64* mem) {
 
     /* Optimize for sparse bitmaps. */
 
-    if (unlikely(*mem)) {
+    if (*mem) {
 
       u16* mem16 = (u16*)mem;
 
@@ -2392,6 +2412,7 @@ static u8 run_target(char** argv, u32 timeout) {
      must prevent any earlier operations from venturing into that
      territory. */
 
+  saved_hash = 0;
   memset(trace_bits, 0, map_used);
   MEM_BARRIER();
 
@@ -2804,7 +2825,7 @@ static void check_map_coverage(void) {
 
   if (count_bytes(trace_bits) < 100) return;
 
-  for (i = (1 << (MAP_SIZE_POW2 - 1)); i < MAP_SIZE; i++)
+  for (i = (1 << (MAP_SIZE_POW2 - 1)); i < map_used; i++)
     if (trace_bits[i]) return;
 
   WARNF("Recompile binary with newer version of afl to improve coverage!");
@@ -4082,8 +4103,7 @@ static void show_stats(void) {
   if (not_on_tty) return;
 
   /* Compute some mildly useful bitmap stats. */
-
-  t_bits = (MAP_SIZE << 3) - count_bits(virgin_bits);
+  t_bits = count_zero_bits((u64*)virgin_bits);
 
   /* Now, for the visuals... */
 
@@ -11610,6 +11630,8 @@ int main(int argc, char** argv) {
 
   gettimeofday(&tv, &tz);
   srandom(tv.tv_sec ^ tv.tv_usec ^ getpid());
+
+  assert(sizeof(var_t) == 64);
 
   while ((opt = getopt(argc, argv, "+i:o:f:m:t:V:T:L:dnCB:S:M:x:Q")) > 0)
 
