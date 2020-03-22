@@ -311,6 +311,7 @@ struct queue_entry {
       depth;                          /* Path depth                       */
 
   u8* trace_mini;                     /* Trace bytes, if kept             */
+  u32 trace_mini_size;
   u32 tc_ref;                         /* Trace bytes ref count            */
 
   struct queue_entry *next,           /* Next element, if any             */
@@ -1137,10 +1138,11 @@ static u32 count_bytes(u8* mem) {
 /* Count the number of non-255 bytes set in the bitmap. Used strictly for the
    status screen, several calls per second or so. */
 
+/* works only on virgin bits */
 static u32 count_non_255_bytes(u8* mem) {
 
   u32* ptr = (u32*)mem;
-  u32  i   = (MAP_SIZE >> 2);
+  u32  i   = (map_used >> 2);
   u32  ret = 0;
 
   while (i--) {
@@ -1179,13 +1181,13 @@ static const u8 simplify_lookup[256] = {
 
 static void simplify_trace(u64* mem) {
 
-  u32 i = MAP_SIZE >> 3;
+  u32 i = map_used >> 3;
 
   while (i--) {
 
     /* Optimize for sparse bitmaps. */
 
-    if (unlikely(*mem)) {
+    if (*mem) {
 
       u8* mem8 = (u8*)mem;
 
@@ -1204,13 +1206,14 @@ static void simplify_trace(u64* mem) {
 
   }
 
+  memset(mem + map_used, 1, MAP_SIZE - map_used);
 }
 
 #else
 
 static void simplify_trace(u32* mem) {
 
-  u32 i = MAP_SIZE >> 2;
+  u32 i = map_used >> 2;
 
   while (i--) {
 
@@ -1229,7 +1232,7 @@ static void simplify_trace(u32* mem) {
 
     mem++;
   }
-
+  memset(mem + map_used, 0x0101, MAP_SIZE - map_used);
 }
 
 #endif /* ^__x86_64__ */
@@ -1268,13 +1271,6 @@ EXP_ST void init_count_class16(void) {
 
 }*/
 
-
-/* Do few common stuffs at once:
- * 1. Classify to buckets
- * 2. Checks if has new bits
- * 3. Calculates hash32
- * 4. Count bytes
- */
 
 #ifdef __x86_64__
 
@@ -1348,7 +1344,7 @@ static void minimize_bits(u8* dst, u8* src) {
 
   u32 i = 0;
 
-  while (i < MAP_SIZE) {
+  while (i < map_used) {
 
     if (*(src++)) dst[i >> 3] |= 1 << (i & 7);
     i++;
@@ -1376,7 +1372,7 @@ static void update_bitmap_score(struct queue_entry* q) {
   /* For every byte set in trace_bits[], see if there is a previous winner,
      and how it compares to us. */
 
-  for (i = 0; i < MAP_SIZE; i++)
+  for (i = 0; i < map_used; i++)
 
     if (trace_bits[i]) {
 
@@ -1402,7 +1398,8 @@ static void update_bitmap_score(struct queue_entry* q) {
        q->tc_ref++;
 
        if (!q->trace_mini) {
-         q->trace_mini = ck_alloc(MAP_SIZE >> 3);
+         q->trace_mini = ck_alloc(map_used >> 3);
+         q->trace_mini_size = map_used;
          minimize_bits(q->trace_mini, trace_bits);
        }
 
@@ -1429,7 +1426,7 @@ static void cull_queue(void) {
 
   score_changed = 0;
 
-  memset(temp_v, 255, MAP_SIZE >> 3);
+  memset(temp_v, 255, map_used >> 3);
 
   queued_favored  = 0;
   pending_favored = 0;
@@ -1444,16 +1441,18 @@ static void cull_queue(void) {
   /* Let's see if anything in the bitmap isn't captured in temp_v.
      If yes, and if it has a top_rated[] contender, let's use it. */
 
-  for (i = 0; i < MAP_SIZE; i++)
+  for (i = 0; i < map_used; i++)
     if (top_rated[i] && (temp_v[i >> 3] & (1 << (i & 7)))) {
 
-      u32 j = MAP_SIZE >> 3;
+      const u32 trace_count = top_rated[i]->trace_mini_size >> 6; //process 64 trace bytes at once
+
+      u64* temp_v64 = (u64*)temp_v;
+      u64* trace_mini64 = (u64*)(top_rated[i]->trace_mini);
 
       /* Remove all bits belonging to the current entry from temp_v. */
-
-      while (j--)
-        if (top_rated[i]->trace_mini[j])
-          temp_v[j] &= ~top_rated[i]->trace_mini[j];
+      for(u32 j = 0; j < trace_count; j++){
+          temp_v64[j] &= ~trace_mini64[j];
+      }
 
       top_rated[i]->favored = 1;
       queued_favored++;
@@ -2705,7 +2704,7 @@ static u8 calibrate_case(char** argv, struct queue_entry* q, u8* use_mem,
   if (dumb_mode != 1 && !no_forkserver && !forksrv_pid)
     init_forkserver(argv);
 
-  if (q->exec_cksum) memcpy(first_trace, trace_bits, MAP_SIZE);
+  if (q->exec_cksum) memcpy(first_trace, trace_bits, map_used);
 
   start_us = get_cur_time_us();
 
@@ -2740,7 +2739,7 @@ static u8 calibrate_case(char** argv, struct queue_entry* q, u8* use_mem,
 
         u32 i;
 
-        for (i = 0; i < MAP_SIZE; i++) {
+        for (i = 0; i < map_used; i++) {
 
           if (!var_bytes[i] && first_trace[i] != trace_bits[i]) {
 
@@ -2756,7 +2755,7 @@ static u8 calibrate_case(char** argv, struct queue_entry* q, u8* use_mem,
       } else {
 
         q->exec_cksum = cksum;
-        memcpy(first_trace, trace_bits, MAP_SIZE);
+        memcpy(first_trace, trace_bits, map_used);
 
       }
 
@@ -4747,7 +4746,7 @@ static u8 trim_case(char** argv, struct queue_entry* q, u8* in_buf) {
         if (!needs_write) {
 
           needs_write = 1;
-          memcpy(clean_trace, trace_bits, MAP_SIZE);
+          memcpy(clean_trace, trace_bits, map_used);
 
         }
 
@@ -4780,7 +4779,7 @@ static u8 trim_case(char** argv, struct queue_entry* q, u8* in_buf) {
     ck_write(fd, in_buf, q->len, q->fname);
     close(fd);
 
-    memcpy(trace_bits, clean_trace, MAP_SIZE);
+    memcpy(trace_bits, clean_trace, map_used);
     update_bitmap_score(q);
 
   }
