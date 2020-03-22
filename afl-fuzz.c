@@ -11631,7 +11631,7 @@ int main(int argc, char** argv) {
   gettimeofday(&tv, &tz);
   srandom(tv.tv_sec ^ tv.tv_usec ^ getpid());
 
-  assert(sizeof(var_t) == 64);
+  //assert(sizeof(var_t) == 64);
 
   while ((opt = getopt(argc, argv, "+i:o:f:m:t:V:T:L:dnCB:S:M:x:Q")) > 0)
 
