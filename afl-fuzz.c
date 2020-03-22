@@ -125,7 +125,7 @@ double x_now[swarm_num][operator_num],
 			core_operator_cycles_puppet_v3[operator_num];          /* Execs per fuzz stage             */
 
 
-#define RAND_C (rand()%1000*0.001)
+#define RAND_C (rand()%1024*0.000976)
 #define v_max 1
 #define v_min 0.05
 #define limit_time_bound 1.1
@@ -410,7 +410,7 @@ int select_algorithm(void) {
 
     srandom(seed[0]);
 
-  double sele = ((double)(random()%10000)*0.0001);
+  double sele = RAND_C();
   //SAYF("select : %f\n",sele);
   j_puppet = 0;
   for (i_puppet = 0; i_puppet < operator_num; i_puppet++)
@@ -11869,7 +11869,7 @@ break;
 				{
 					stage_finds_puppet[tmp_swarm][i] = 0;
 					probability_now[tmp_swarm][i] = 0.0;
-					x_now[tmp_swarm][i] = ((double)(random() % 7000)*0.0001 + 0.1);
+					x_now[tmp_swarm][i] = ((double)(random() % 1024)*0.000683 + 0.1);
 					total_puppet_temp += x_now[tmp_swarm][i];
 					v_now[tmp_swarm][i] = 0.1;
 					L_best[tmp_swarm][i] = 0.5;
