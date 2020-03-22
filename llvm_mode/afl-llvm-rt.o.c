@@ -184,7 +184,7 @@ int __afl_persistent_loop(unsigned int max_cnt) {
 
     if (is_persistent) {
 
-      memset(__afl_area_ptr, 0, MAP_SIZE);
+      memset(__afl_area_ptr, 0, __afl_idx_ptr[MAP_SIZE]);
       __afl_prev_loc1 = 0;
       __afl_prev_loc2 = 0;
     }
