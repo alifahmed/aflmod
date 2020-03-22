@@ -410,7 +410,7 @@ int select_algorithm(void) {
 
     srandom(seed[0]);
 
-  double sele = RAND_C();
+  double sele = RAND_C;
   //SAYF("select : %f\n",sele);
   j_puppet = 0;
   for (i_puppet = 0; i_puppet < operator_num; i_puppet++)
