@@ -28,7 +28,7 @@ PROGS       = afl-gcc afl-fuzz afl-showmap afl-tmin afl-gotcpu afl-analyze
 SH_PROGS    = afl-plot afl-cmin afl-whatsup
 
 #CFLAGS     ?= -O3 -funroll-loops
-CFLAGS     += -O3 -funroll-loops -march=native -D_FORTIFY_SOURCE=2 -Wno-pointer-sign \
+CFLAGS     += -O3 -funroll-loops -msse4.2 -msse2 -msse3 -D_FORTIFY_SOURCE=2 -Wno-pointer-sign \
 	      -DAFL_PATH=\"$(HELPER_PATH)\" -DDOC_PATH=\"$(DOC_PATH)\" \
 	      -DBIN_PATH=\"$(BIN_PATH)\"
 
