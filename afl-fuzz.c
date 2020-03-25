@@ -1272,18 +1272,30 @@ EXP_ST void init_count_class16(void) {
 
 #ifdef __x86_64__
 
-static void classify_counts(u64* mem) {
+static u32 keyCount[256];
 
-    //dump_histogram((u8*)mem);
+static void print_key_hist(){
+  for(u32 i = 0; i < 256; i++){
+    SAYF("%-5u: %u\n", i, keyCount[i]);
+  }
+}
+
+static void classify_counts(u64* mem) {
 
   u32 i = map_used >> 3;
 
   while (i--) {
+    u8* mem8 = (u8*)mem;
+    keyCount[mem8[0]]++;
+    keyCount[mem8[1]]++;
+    keyCount[mem8[2]]++;
+    keyCount[mem8[3]]++;
+    keyCount[mem8[4]]++;
+    keyCount[mem8[5]]++;
+    keyCount[mem8[6]]++;
+    keyCount[mem8[7]]++;
 
-    /* Optimize for sparse bitmaps. */
-
-    if (unlikely(*mem)) {
-
+    if (*mem) {
       u16* mem16 = (u16*)mem;
 
       mem16[0] = count_class_lookup16[mem16[0]];
@@ -12122,6 +12134,7 @@ stop_fuzzing:
   SAYF(CURSOR_SHOW cLRD "\n\n+++ Testing aborted %s +++\n" cRST,
        stop_soon == 2 ? "programmatically" : "by user");
 
+  print_key_hist();
   /* Running for more than 30 minutes but still doing first cycle? */
 
   if (queue_cycle == 1 && get_cur_time() - start_time > 30 * 60 * 1000) {
