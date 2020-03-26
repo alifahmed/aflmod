@@ -1255,7 +1255,7 @@ static void classify_counts(u64* __restrict__ mem) {
   u32 i = map_used >> 3;
 
   while (i--) {
-    if (unlikely(*mem)) {
+    if (*mem) {
       vt vmem;
       vmem.t64 = *mem;
 
@@ -1268,7 +1268,7 @@ static void classify_counts(u64* __restrict__ mem) {
 
       //compare
       u64 nb = vmem.t64 & *vbits;
-      if(unlikely(nb)){
+      if(nb){
         //found new path/count
         if(saved_hnb < 2){
           if(nb & mask) saved_hnb = 2;  //found new path
@@ -1330,9 +1330,8 @@ static void remove_shm(void) {
 static void minimize_bits(u8* __restrict__ dst, u8* __restrict__ src) {
 
   u32 i = 0;
-  i = map_used >> 3;
 
-  while (i < map_used) {
+  while (i < (map_used >> 3)) {
     u32 src_idx = i << 3;   //i * 8
     dst[i] = src[src_idx] & 1;
     dst[i] |= (src[src_idx + 1] & 1) << 1;
