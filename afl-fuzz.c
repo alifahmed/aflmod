@@ -160,6 +160,7 @@ EXP_ST u64 mem_limit  = MEM_LIMIT;    /* Memory cap for child (MB)        */
 static u32 stats_update_freq = 1;     /* Stats update frequency (execs)   */
 u32 saved_hash = 0;
 u32 saved_bytes = 0;
+u8 saved_hnb = 0;
 
 EXP_ST u8  skip_deterministic,        /* Skip deterministic stages?       */
            force_deterministic,       /* Force deterministic stages?      */
@@ -994,55 +995,24 @@ EXP_ST void read_bitmap(u8* fname) {
 
 static inline u8 has_new_bits(u8* virgin_map) {
 
-#ifdef __x86_64__
+  if(virgin_map == virgin_bits) return saved_hnb;
 
-  u64* current = (u64*)trace_bits;
-  u64* virgin  = (u64*)virgin_map;
+  const static u64 mask = 0x0101010101010101ULL;
+  u64* __restrict__ current = (u64*)trace_bits;
+  u64* __restrict__ virgin  = (u64*)virgin_map;
 
   u32  i = (map_used >> 3);
-
-#else
-
-  u32* current = (u32*)trace_bits;
-  u32* virgin  = (u32*)virgin_map;
-
-  u32  i = (map_used >> 2);
-
-#endif /* ^__x86_64__ */
 
   u8   ret = 0;
 
   while (i--) {
 
-    /* Optimize for (*current & *virgin) == 0 - i.e., no bits in current bitmap
-       that have not been already cleared from the virgin map - since this will
-       almost always be the case. */
-
     if (*current && (*current & *virgin)) {
 
       if (likely(ret < 2)) {
 
-        u8* cur = (u8*)current;
-        u8* vir = (u8*)virgin;
-
-        /* Looks like we have not found any new bytes yet; see if any non-zero
-           bytes in current[] are pristine in virgin[]. */
-
-#ifdef __x86_64__
-
-        if ((cur[0] && vir[0] == 0xff) || (cur[1] && vir[1] == 0xff) ||
-            (cur[2] && vir[2] == 0xff) || (cur[3] && vir[3] == 0xff) ||
-            (cur[4] && vir[4] == 0xff) || (cur[5] && vir[5] == 0xff) ||
-            (cur[6] && vir[6] == 0xff) || (cur[7] && vir[7] == 0xff)) ret = 2;
+        if(*current & *virgin & mask) ret = 2;
         else ret = 1;
-
-#else
-
-        if ((cur[0] && vir[0] == 0xff) || (cur[1] && vir[1] == 0xff) ||
-            (cur[2] && vir[2] == 0xff) || (cur[3] && vir[3] == 0xff)) ret = 2;
-        else ret = 1;
-
-#endif /* ^__x86_64__ */
 
       }
 
@@ -1054,8 +1024,6 @@ static inline u8 has_new_bits(u8* virgin_map) {
     virgin++;
 
   }
-
-  if (ret && virgin_map == virgin_bits) bitmap_changed = 1;
 
   return ret;
 
@@ -1180,6 +1148,7 @@ static const u8 simplify_lookup[256] = {
 #ifdef __x86_64__
 
 static void simplify_trace(u64* mem) {
+  const static u64 mask = 0x0101010101010101ULL;
 
   u32 i = map_used >> 3;
 
@@ -1188,7 +1157,6 @@ static void simplify_trace(u64* mem) {
     /* Optimize for sparse bitmaps. */
 
     if (*mem) {
-
       u8* mem8 = (u8*)mem;
 
       mem8[0] = simplify_lookup[mem8[0]];
@@ -1200,7 +1168,7 @@ static void simplify_trace(u64* mem) {
       mem8[6] = simplify_lookup[mem8[6]];
       mem8[7] = simplify_lookup[mem8[7]];
 
-    } else *mem = 0x0101010101010101ULL;
+    } else *mem = mask;
 
     mem++;
 
@@ -1244,13 +1212,13 @@ static const u8 count_class_lookup8[256] = {
 
   [0]           = 0,
   [1]           = 1,
-  [2]           = 2,
-  [3]           = 4,
-  [4 ... 7]     = 8,
-  [8 ... 15]    = 16,
-  [16 ... 31]   = 32,
-  [32 ... 127]  = 64,
-  [128 ... 255] = 128
+  [2]           = 3,
+  [3]           = 5,
+  [4 ... 7]     = 9,
+  [8 ... 15]    = 17,
+  [16 ... 31]   = 33,
+  [32 ... 127]  = 65,
+  [128 ... 255] = 129
 
 };
 
@@ -1272,56 +1240,50 @@ EXP_ST void init_count_class16(void) {
 
 #ifdef __x86_64__
 
-static void classify_counts(u64* mem) {
+typedef union{
+  u64 t64;
+  u32 t32[2];
+  u16 t16[4];
+  u8 t8[8];
+} vt;
 
-    //dump_histogram((u8*)mem);
+static void classify_counts(u64* __restrict__ mem) {
+  static const u64 mask = 0x0101010101010101ULL;
+  saved_hnb = 0;
 
+  u64* __restrict__ vbits = (u64*) virgin_bits;
   u32 i = map_used >> 3;
 
   while (i--) {
-
-    /* Optimize for sparse bitmaps. */
-
     if (unlikely(*mem)) {
+      vt vmem;
+      vmem.t64 = *mem;
 
-      u16* mem16 = (u16*)mem;
+      //classify
+      vmem.t16[0] = count_class_lookup16[vmem.t16[0]];
+      vmem.t16[1] = count_class_lookup16[vmem.t16[1]];
+      vmem.t16[2] = count_class_lookup16[vmem.t16[2]];
+      vmem.t16[3] = count_class_lookup16[vmem.t16[3]];
+      *mem = vmem.t64;
 
-      mem16[0] = count_class_lookup16[mem16[0]];
-      mem16[1] = count_class_lookup16[mem16[1]];
-      mem16[2] = count_class_lookup16[mem16[2]];
-      mem16[3] = count_class_lookup16[mem16[3]];
-
+      //compare
+      u64 nb = vmem.t64 & *vbits;
+      if(unlikely(nb)){
+        //found new path/count
+        if(saved_hnb < 2){
+          if(nb & mask) saved_hnb = 2;  //found new path
+          else saved_hnb = 1;           //just new count, not a new path
+        }
+        *vbits &= ~vmem.t64;
+      }
     }
 
     mem++;
-
+    vbits++;
   }
 
+  if(saved_hnb) bitmap_changed = 1;
 }
-
-/*static inline void classify_counts(u64* mem) {
-
-  static const u64 mask1 = 0xFF00FF00FF00FF00ULL;
-  static const u64 mask2 = 0x00FF00FF00FF00FFULL;
-
-  u32 i = map_used >> 3;
-  while (i--) {
-    const u64 x = *mem;
-    if(x){
-      u64 x1 = x & mask1;     //even bytes
-      u64 x2 = x & mask2;     //odd bytes
-      x1 |= x1 >> 1;
-      x2 |= x2 >> 1;
-      x1 |= x1 >> 2;
-      x2 |= x2 >> 2;
-      x1 |= x1 >> 4;
-      x2 |= x2 >> 4;
-      *mem = (x1 & mask1) | (x2 & mask2);
-    }
-    mem++;
-  }
-}*/
-
 
 #else
 
@@ -1365,15 +1327,23 @@ static void remove_shm(void) {
    count information here. This is called only sporadically, for some
    new paths. */
 
-static void minimize_bits(u8* dst, u8* src) {
+static void minimize_bits(u8* __restrict__ dst, u8* __restrict__ src) {
 
   u32 i = 0;
+  i = map_used >> 3;
 
   while (i < map_used) {
-
-    if (*(src++)) dst[i >> 3] |= 1 << (i & 7);
+    u32 src_idx = i << 3;   //i * 8
+    dst[i] = src[src_idx] & 1;
+    dst[i] |= (src[src_idx + 1] & 1) << 1;
+    dst[i] |= (src[src_idx + 2] & 1) << 2;
+    dst[i] |= (src[src_idx + 3] & 1) << 3;
+    dst[i] |= (src[src_idx + 4] & 1) << 4;
+    dst[i] |= (src[src_idx + 5] & 1) << 5;
+    dst[i] |= (src[src_idx + 6] & 1) << 6;
+    dst[i] |= (src[src_idx + 7] & 1) << 7;
+    //if (*(src++)) dst[i >> 3] |= 1 << (i & 7);
     i++;
-
   }
 
 }
@@ -2439,6 +2409,7 @@ static u8 run_target(char** argv, u32 timeout) {
 
   saved_hash = 0;
   saved_bytes = 0;
+  saved_hnb = 0;
   memset(trace_bits, 0, map_used);
   MEM_BARRIER();
 
@@ -2757,7 +2728,8 @@ static u8 calibrate_case(char** argv, struct queue_entry* q, u8* use_mem,
 
     if (q->exec_cksum != cksum) {
 
-      u8 hnb = has_new_bits(virgin_bits);
+      //u8 hnb = has_new_bits(virgin_bits);
+      u8 hnb = saved_hnb;
       if (hnb > new_bits) new_bits = hnb;
 
       if (q->exec_cksum) {
@@ -2847,6 +2819,8 @@ abort_calibration:
 
 static void check_map_coverage(void) {
 
+  // No need to do this
+  /*
   u32 i;
 
   if (count_bytes(trace_bits) < 100) return;
@@ -2855,7 +2829,7 @@ static void check_map_coverage(void) {
     if (trace_bits[i]) return;
 
   WARNF("Recompile binary with newer version of afl to improve coverage!");
-
+  */
 }
 
 
@@ -3294,7 +3268,8 @@ static u8 save_if_interesting(char** argv, void* mem, u32 len, u8 fault) {
     /* Keep only if there are new bits in the map, add to queue for
        future fuzzing, etc. */
 
-    if (!(hnb = has_new_bits(virgin_bits))) {
+    //if (!(hnb = has_new_bits(virgin_bits))) {
+    if (!(hnb = saved_hnb)) {
       if (crash_mode) total_crashes++;
       return 0;
     }
@@ -3352,12 +3327,12 @@ static u8 save_if_interesting(char** argv, void* mem, u32 len, u8 fault) {
       if (!dumb_mode) {
 
 #ifdef __x86_64__
-        simplify_trace((u64*)trace_bits);
+        //simplify_trace((u64*)trace_bits);
 #else
-        simplify_trace((u32*)trace_bits);
+        //simplify_trace((u32*)trace_bits);
 #endif /* ^__x86_64__ */
 
-        if (!has_new_bits(virgin_tmout)) return keeping;
+        if (has_new_bits(virgin_tmout) < 2) return keeping;
 
       }
 
@@ -3416,12 +3391,12 @@ keep_as_crash:
       if (!dumb_mode) {
 
 #ifdef __x86_64__
-        simplify_trace((u64*)trace_bits);
+        //simplify_trace((u64*)trace_bits);
 #else
-        simplify_trace((u32*)trace_bits);
+        //simplify_trace((u32*)trace_bits);
 #endif /* ^__x86_64__ */
 
-        if (!has_new_bits(virgin_crash)) return keeping;
+        if (has_new_bits(virgin_crash) < 2) return keeping;
 
       }
 
