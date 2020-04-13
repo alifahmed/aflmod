@@ -270,7 +270,7 @@ void __sanitizer_cov_trace_pc_guard(uint32_t* guard) {
   }
   __afl_area_ptr[idx] = (__afl_area_ptr[idx] == 255) ? 255 : __afl_area_ptr[idx] + 1;
   __afl_prev_loc2 = __afl_prev_loc1;
-  __afl_prev_loc1 = curr;
+  __afl_prev_loc1 = (curr >> 1);
 }
 
 
