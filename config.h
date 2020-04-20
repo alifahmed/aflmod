@@ -313,7 +313,7 @@
    problems with complex programs). You need to recompile the target binary
    after changing this - otherwise, SEGVs may ensue. */
 
-#define MAP_SIZE_POW2       16
+#define MAP_SIZE_POW2       15
 //#define MAP_SIZE_POW2       20
 #define MAP_SIZE            (1 << MAP_SIZE_POW2)
 
