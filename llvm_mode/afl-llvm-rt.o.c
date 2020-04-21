@@ -275,7 +275,7 @@ void __sanitizer_cov_trace_pc_guard(uint32_t* guard) {
   const uint32_t key = *guard;
   uint32_t idx = __afl_idx_ptr[key];
   if(idx == -1){
-	  idx = __afl_idx_ptr[MAP_SIZE]++;
+	  idx = __afl_idx_ptr[0]++;
 	  __afl_idx_ptr[key] = idx;
   }
   __afl_area_ptr[idx]++;

@@ -1507,7 +1507,7 @@ EXP_ST void setup_shm(void) {
   memset(virgin_tmout, 255, MAP_SIZE);
   memset(virgin_crash, 255, MAP_SIZE);
 
-  shm_id_val = shmget(IPC_PRIVATE, MAP_SIZE, IPC_CREAT | IPC_EXCL | 0600);
+  shm_id_val = shmget(IPC_PRIVATE, MAP_SIZE, IPC_CREAT | IPC_EXCL | SHM_HUGETLB | 0600);
   if (shm_id_val < 0) PFATAL("shmget() failed");
   atexit(remove_shm);
 
@@ -1521,7 +1521,7 @@ EXP_ST void setup_shm(void) {
   if (!dumb_mode) setenv(SHM_ENV_VAR_VAL, shm_str, 1);
   ck_free(shm_str);
 
-  shm_id_idx = shmget(IPC_PRIVATE, MAP_SIZE * 4 + 4, IPC_CREAT | IPC_EXCL | 0600);
+  shm_id_idx = shmget(IPC_PRIVATE, MAP_SIZE * 4, IPC_CREAT | IPC_EXCL | SHM_HUGETLB | 0600);
   if (shm_id_idx < 0) PFATAL("shmget() failed");
   shm_str = alloc_printf("%d", shm_id_idx);
   setenv(SHM_ENV_VAR_IDX, shm_str, 1);
@@ -2591,7 +2591,7 @@ static u8 run_target(char** argv, u32 timeout) {
   MEM_BARRIER();
 
   tb4 = *(u32*)trace_bits;
-  map_used = (((trace_idx[MAP_SIZE] + 63) / 64) * 64);
+  map_used = (((trace_idx[0] + 63) / 64) * 64);
 
 #ifdef __x86_64__
   classify_counts((u64*)trace_bits);
