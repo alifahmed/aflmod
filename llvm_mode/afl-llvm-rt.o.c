@@ -272,7 +272,7 @@ void __sanitizer_cov_trace_pc_guard(uint32_t* guard) {
   const uint32_t key = curr ^ __afl_prev_loc1 ^ __afl_prev_loc2;
   __afl_area_ptr[key]++;
   __afl_prev_loc2 = __afl_prev_loc1;
-  __afl_prev_loc1 = curr;
+  __afl_prev_loc1 = (curr >> 1);
 }
 
 
