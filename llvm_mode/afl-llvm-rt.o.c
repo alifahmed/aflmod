@@ -52,7 +52,7 @@
 u8  __afl_area_initial[MAP_SIZE];
 u8* __afl_area_ptr = __afl_area_initial;
 
-u32 __afl_idx_initial[MAP_SIZE + 1];
+u32 __afl_idx_initial[MAP_SIZE];
 u32* __afl_idx_ptr = __afl_idx_initial;
 
 __thread u32 __afl_prev_loc1;
@@ -82,7 +82,7 @@ static void __afl_map_shm(void) {
     if (__afl_idx_ptr == (void *)-1) _exit(1);
   }
   memset(__afl_idx_ptr, 255, MAP_SIZE * 4);
-  __afl_idx_ptr[MAP_SIZE] = 0;
+  __afl_idx_ptr[0] = 0;
   MEM_BARRIER();
 }
 
@@ -184,7 +184,7 @@ int __afl_persistent_loop(unsigned int max_cnt) {
 
     if (is_persistent) {
 
-      memset(__afl_area_ptr, 0, __afl_idx_ptr[MAP_SIZE]);
+      memset(__afl_area_ptr, 0, __afl_idx_ptr[0]);
       __afl_prev_loc1 = 0;
       __afl_prev_loc2 = 0;
     }
