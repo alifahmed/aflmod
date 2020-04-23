@@ -1521,7 +1521,7 @@ EXP_ST void setup_shm(void) {
   if (!dumb_mode) setenv(SHM_ENV_VAR_VAL, shm_str, 1);
   ck_free(shm_str);
 
-  shm_id_idx = shmget(IPC_PRIVATE, MAP_SIZE * 4 IPC_CREAT | IPC_EXCL | SHM_HUGETLB | 0600);
+  shm_id_idx = shmget(IPC_PRIVATE, MAP_SIZE * 4, IPC_CREAT | IPC_EXCL | SHM_HUGETLB | 0600);
   if (shm_id_idx < 0) PFATAL("shmget() failed");
   shm_str = alloc_printf("%d", shm_id_idx);
   setenv(SHM_ENV_VAR_IDX, shm_str, 1);
