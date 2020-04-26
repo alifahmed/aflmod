@@ -261,9 +261,8 @@ __attribute__((constructor(CONST_PRIO))) void __afl_auto_init(void) {
    edge (as opposed to every basic block). */
 
 void __sanitizer_cov_trace_pc_guard(uint32_t* guard) {
-  //const uint32_t curr = *guard;
-  //const uint32_t key = curr ^ __afl_prev_loc1 ^ __afl_prev_loc2;
-  const uint32_t key = *guard;
+  const uint32_t curr = *guard;
+  const uint32_t key = curr ^ __afl_prev_loc1;
   uint32_t idx = __afl_idx_ptr[key];
   if(idx == -1){
 	  idx = __afl_idx_ptr[MAP_SIZE]++;
@@ -271,7 +270,7 @@ void __sanitizer_cov_trace_pc_guard(uint32_t* guard) {
   }
   __afl_area_ptr[idx]++;
   //__afl_prev_loc2 = __afl_prev_loc1;
-  //__afl_prev_loc1 = (curr >> 1);
+  __afl_prev_loc1 = (curr >> 1);
 }
 
 
