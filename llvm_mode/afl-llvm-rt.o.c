@@ -264,7 +264,7 @@ __attribute__((constructor(CONST_PRIO))) void __afl_auto_init(void) {
 
 void __sanitizer_cov_trace_pc_guard(uint32_t* guard) {
   const uint32_t curr = *guard;
-  const uint32_t key = curr;// ^ __afl_prev_loc1 ^ __afl_prev_loc2 ^ __afl_prev_loc3 ^ __afl_prev_loc4;
+  uint32_t key = curr;// ^ __afl_prev_loc1 ^ __afl_prev_loc2 ^ __afl_prev_loc3 ^ __afl_prev_loc4;
   for(int i = 0; i < NB; i++){
     key = key ^ __afl_prev_loc[i];
   }
