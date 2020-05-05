@@ -54,7 +54,7 @@ u8* __afl_area_ptr = __afl_area_initial;
 
 u32 __afl_idx_initial[MAP_SIZE + 1];
 u32* __afl_idx_ptr = __afl_idx_initial;
-
+ 
 #define NB 50
 #if (NB > 0)
 __thread u32 __afl_prev_loc[NB];
