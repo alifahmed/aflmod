@@ -238,7 +238,8 @@ int main(int argc, char **argv) {
   if (!getenv("AFL_DRIVER_DONT_DEFER"))
     __afl_manual_init();
 
-  int N = 1000;
+  //int N = 1000;
+  int N = 1;
   if (argc == 2 && argv[1][0] == '-')
       N = atoi(argv[1] + 1);
   else if(argc == 2 && (N = atoi(argv[1])) > 0)

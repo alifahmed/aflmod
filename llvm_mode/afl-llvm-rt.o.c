@@ -55,10 +55,8 @@ u8* __afl_area_ptr = __afl_area_initial;
 u32 __afl_idx_initial[MAP_SIZE + 1];
 u32* __afl_idx_ptr = __afl_idx_initial;
 
-__thread u32 __afl_prev_loc1;
-__thread u32 __afl_prev_loc2;
-__thread u32 __afl_prev_loc3;
-__thread u32 __afl_prev_loc4;
+#define NB 10
+__thread u32 __afl_prev_loc[NB];
 
 
 /* Running in persistent mode? */
@@ -187,10 +185,9 @@ int __afl_persistent_loop(unsigned int max_cnt) {
     if (is_persistent) {
 
       memset(__afl_area_ptr, 0, __afl_idx_ptr[MAP_SIZE]);
-      __afl_prev_loc1 = 0;
-      __afl_prev_loc2 = 0;
-      __afl_prev_loc3 = 0;
-      __afl_prev_loc4 = 0;
+      for(int i = 0; i < NB; i++){
+        __afl_prev_loc[i] = 0;
+      }
     }
 
     cycle_cnt  = max_cnt;
@@ -204,10 +201,9 @@ int __afl_persistent_loop(unsigned int max_cnt) {
     if (--cycle_cnt) {
 
       raise(SIGSTOP);
-      __afl_prev_loc1 = 0;
-      __afl_prev_loc2 = 0;
-      __afl_prev_loc3 = 0;
-      __afl_prev_loc4 = 0;
+      for(int i = 0; i < NB; i++){
+        __afl_prev_loc[i] = 0;
+      }
 
       return 1;
 
@@ -268,17 +264,20 @@ __attribute__((constructor(CONST_PRIO))) void __afl_auto_init(void) {
 
 void __sanitizer_cov_trace_pc_guard(uint32_t* guard) {
   const uint32_t curr = *guard;
-  const uint32_t key = curr ^ __afl_prev_loc1 ^ __afl_prev_loc2 ^ __afl_prev_loc3 ^ __afl_prev_loc4;
+  const uint32_t key = curr;// ^ __afl_prev_loc1 ^ __afl_prev_loc2 ^ __afl_prev_loc3 ^ __afl_prev_loc4;
+  for(int i = 0; i < NB; i++){
+    key = key ^ __afl_prev_loc[i];
+  }
   uint32_t idx = __afl_idx_ptr[key];
   if(idx == -1){
 	  idx = __afl_idx_ptr[MAP_SIZE]++;
 	  __afl_idx_ptr[key] = idx;
   }
   __afl_area_ptr[idx]++;
-  __afl_prev_loc4 = __afl_prev_loc3;
-  __afl_prev_loc3 = __afl_prev_loc2;
-  __afl_prev_loc2 = __afl_prev_loc1;
-  __afl_prev_loc1 = (curr >> 1);
+  for(int i = NB - 1; i > 0; i--){
+    __afl_prev_loc[i] = __afl_prev_loc[i-1];
+  }
+  __afl_prev_loc[0] = (curr >> 1);
 }
 
 

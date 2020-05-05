@@ -3059,7 +3059,8 @@ static void perform_dry_run(char** argv) {
 
   }
 
-  OKF("All test cases processed.");
+  OKF("All test cases processed., Total paths covered: %u", trace_idx[MAP_SIZE]);
+  exit(0);
 
 }
 
