@@ -289,12 +289,13 @@ void __sanitizer_cov_trace_pc_guard(uint32_t* guard) {
 static u8 __afl_used_keys[MAP_SIZE];
 
 uint32_t __afl_get_unique_key(){
-	uint32_t key = 1;
+	/*uint32_t key = 1;
 	do {
 		key = R(MAP_SIZE);
 	} while((key == 0) || (__afl_used_keys[key] == 1));
 	__afl_used_keys[key] = 1;
-	return key;
+	return key;*/
+	return R(MAP_SIZE - 1) + 1;
 }
 
 void __sanitizer_cov_trace_pc_guard_init(uint32_t* start, uint32_t* stop) {
