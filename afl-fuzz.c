@@ -5229,7 +5229,7 @@ static u8 normal_fuzz_one(char** argv) {
 #endif /* ^IGNORE_FINDS */
 
 	if (not_on_tty) {
-		ACTF("Fuzzing test case #%u (%u total, %llu uniq crashes found, %llu edges covered)...",
+		ACTF("Fuzzing test case #%u (%u total, %llu uniq crashes found, %u edges covered)...",
 			current_entry, queued_paths, unique_crashes, trace_idx[0]);
 		fflush(stdout);
 	}
@@ -6946,8 +6946,8 @@ static u8 pilot_fuzzing(char** argv) {
 #endif /* ^IGNORE_FINDS */
 
 	if (not_on_tty) {
-		ACTF("Fuzzing test case #%u (%u total, %llu uniq crashes found)...",
-			current_entry, queued_paths, unique_crashes);
+		ACTF("Fuzzing test case #%u (%u total, %llu uniq crashes found, %u edges covered)...",
+			current_entry, queued_paths, unique_crashes, trace_idx[0]);
 		fflush(stdout);
 	}
 
@@ -8780,8 +8780,8 @@ static u8 core_fuzzing(char** argv) {
 #endif /* ^IGNORE_FINDS */
 
 		if (not_on_tty) {
-			ACTF("Fuzzing test case #%u (%u total, %llu uniq crashes found)...",
-				current_entry, queued_paths, unique_crashes);
+			ACTF("Fuzzing test case #%u (%u total, %llu uniq crashes found, %u edges covered)...",
+				current_entry, queued_paths, unique_crashes, trace_idx[0]);
 			fflush(stdout);
 		}
 
