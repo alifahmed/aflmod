@@ -78,6 +78,22 @@
 #  define EXP_ST static
 #endif /* ^AFL_LIB */
 
+
+//==============================================================================
+//                                    ALIF
+//==============================================================================
+u64 total_time = 0;
+u64 map_reset_time = 0;
+u64 map_classify_time = 0;
+u64 map_compare_time = 0;
+u64 map_hash_time = 0;
+u64 map_simplify_time = 0;
+u64 map_copy_time = 0;
+u64 exec_time = 0;
+u64 score_update_time = 0;
+u64 cull_queue_time = 0;
+
+
 /* Lots of globals, but mostly for the status UI and other things where it
    really makes no sense to haul them around as function parameters. */
 EXP_ST u64 limit_time_puppet = 0;
@@ -464,6 +480,13 @@ static u64 get_cur_time_us(void) {
 
   return (tv.tv_sec * 1000000ULL) + tv.tv_usec;
 
+}
+
+static inline u32 hash32_time(const void* key, u32 len, u32 seed){
+	u64 ttt = get_cur_time_us();
+	u32 ret = hash32(key, len, seed);
+	map_hash_time += get_cur_time_us() - ttt;
+	return ret;
 }
 
 
@@ -993,7 +1016,7 @@ EXP_ST void read_bitmap(u8* fname) {
    it needs to be fast. We do this in 32-bit and 64-bit flavors. */
 
 static inline u8 has_new_bits(u8* virgin_map) {
-
+u64 ttt = get_cur_time_us();
 #ifdef __x86_64__
 
   u64* current = (u64*)trace_bits;
@@ -1056,7 +1079,7 @@ static inline u8 has_new_bits(u8* virgin_map) {
   }
 
   if (ret && virgin_map == virgin_bits) bitmap_changed = 1;
-
+map_compare_time += get_cur_time_us() - ttt;
   return ret;
 
 }
@@ -1180,7 +1203,7 @@ static const u8 simplify_lookup[256] = {
 #ifdef __x86_64__
 
 static void simplify_trace(u64* mem) {
-
+u64 ttt = get_cur_time_us();
   u32 i = map_used >> 3;
 
   while (i--) {
@@ -1205,6 +1228,8 @@ static void simplify_trace(u64* mem) {
     mem++;
 
   }
+
+map_simplify_time += get_cur_time_us() - ttt;
 }
 
 #else
@@ -1273,7 +1298,7 @@ EXP_ST void init_count_class16(void) {
 #ifdef __x86_64__
 
 static void classify_counts(u64* mem) {
-
+u64 ttt = get_cur_time_us();
     //dump_histogram((u8*)mem);
 
   u32 i = map_used >> 3;
@@ -1296,7 +1321,7 @@ static void classify_counts(u64* mem) {
     mem++;
 
   }
-
+map_classify_time += get_cur_time_us() - ttt;
 }
 
 /*static inline void classify_counts(u64* mem) {
@@ -1390,7 +1415,7 @@ static void minimize_bits(u8* dst, u8* src) {
    contender, or if the contender has a more favorable speed x size factor. */
 
 static void update_bitmap_score(struct queue_entry* q) {
-
+u64 ttt = get_cur_time_us();
   u32 i;
   u64 fav_factor = q->exec_us * q->len;
 
@@ -1431,7 +1456,7 @@ static void update_bitmap_score(struct queue_entry* q) {
        score_changed = 1;
 
      }
-
+score_update_time += get_cur_time_us() - ttt;
 }
 
 
@@ -1442,7 +1467,7 @@ static void update_bitmap_score(struct queue_entry* q) {
    all fuzzing steps. */
 
 static void cull_queue(void) {
-
+u64 ttt = get_cur_time_us();
   struct queue_entry* q;
   static u8 temp_v[MAP_SIZE >> 3];
   u32 i;
@@ -1492,7 +1517,7 @@ static void cull_queue(void) {
     mark_as_redundant(q, !q->favored);
     q = q->next;
   }
-
+cull_queue_time += get_cur_time_us() - ttt;
 }
 
 
@@ -2439,13 +2464,16 @@ static u8 run_target(char** argv, u32 timeout) {
 
   saved_hash = 0;
   saved_bytes = 0;
+	u64 ttt = get_cur_time_us();
   memset(trace_bits, 0, map_used);
   MEM_BARRIER();
+	map_reset_time += get_cur_time_us() - ttt;
 
   /* If we're running in "dumb" mode, we can't rely on the fork server
      logic compiled into the target program, so we will just keep calling
      execve(). There is a bit of code duplication between here and
      init_forkserver(), but c'est la vie. */
+ttt = get_cur_time_us();
 
   if (dumb_mode == 1 || no_forkserver) {
 
@@ -2589,6 +2617,7 @@ static u8 run_target(char** argv, u32 timeout) {
      very normally and do not have to be treated as volatile. */
 
   MEM_BARRIER();
+exec_time += get_cur_time_us() - ttt;
 
   tb4 = *(u32*)trace_bits;
   map_used = (((trace_idx[0] + 63) / 64) * 64);
@@ -2729,7 +2758,9 @@ static u8 calibrate_case(char** argv, struct queue_entry* q, u8* use_mem,
   if (dumb_mode != 1 && !no_forkserver && !forksrv_pid)
     init_forkserver(argv);
 
+  u64 ttt = get_cur_time_us();
   if (q->exec_cksum) memcpy(first_trace, trace_bits, map_used);
+	map_copy_time += get_cur_time_us() - ttt;
 
   start_us = get_cur_time_us();
 
@@ -2753,13 +2784,14 @@ static u8 calibrate_case(char** argv, struct queue_entry* q, u8* use_mem,
       goto abort_calibration;
     }
 
-    cksum = hash32(trace_bits, map_used, HASH_CONST);
+    cksum = hash32_time(trace_bits, map_used, HASH_CONST);
 
     if (q->exec_cksum != cksum) {
 
       u8 hnb = has_new_bits(virgin_bits);
       if (hnb > new_bits) new_bits = hnb;
 
+		ttt = get_cur_time_us();
       if (q->exec_cksum) {
 
         u32 i;
@@ -2783,7 +2815,7 @@ static u8 calibrate_case(char** argv, struct queue_entry* q, u8* use_mem,
         memcpy(first_trace, trace_bits, map_used);
 
       }
-
+	map_copy_time += get_cur_time_us() - ttt;
     }
 
   }
@@ -3317,7 +3349,7 @@ static u8 save_if_interesting(char** argv, void* mem, u32 len, u8 fault) {
       queued_with_cov++;
     }
 
-    queue_top->exec_cksum = hash32(trace_bits, map_used, HASH_CONST);
+    queue_top->exec_cksum = hash32_time(trace_bits, map_used, HASH_CONST);
 
     /* Try to calibrate inline; this also calls update_bitmap_score() when
        successful. */
@@ -4748,7 +4780,7 @@ static u8 trim_case(char** argv, struct queue_entry* q, u8* in_buf) {
 
       /* Note that we don't keep track of crashes or hangs here; maybe TODO? */
 
-      cksum = hash32(trace_bits, map_used, HASH_CONST);
+      cksum = hash32_time(trace_bits, map_used, HASH_CONST);
 
       /* If the deletion had no impact on the trace, make it permanent. This
          isn't perfect for variable-path inputs, but we're just making a
@@ -5390,7 +5422,7 @@ static u8 normal_fuzz_one(char** argv) {
 
 		if (!dumb_mode && (stage_cur & 7) == 7) {
 
-			u32 cksum = hash32(trace_bits, map_used, HASH_CONST);
+			u32 cksum = hash32_time(trace_bits, map_used, HASH_CONST);
 
 			if (stage_cur == stage_max - 1 && cksum == prev_cksum) {
 
@@ -5547,7 +5579,7 @@ static u8 normal_fuzz_one(char** argv) {
 			   without wasting time on checksums. */
 
 			if (!dumb_mode && len >= EFF_MIN_LEN)
-				cksum = hash32(trace_bits, map_used, HASH_CONST);
+				cksum = hash32_time(trace_bits, map_used, HASH_CONST);
 			else
 				cksum = ~queue_cur->exec_cksum;
 
@@ -7119,7 +7151,7 @@ static u8 pilot_fuzzing(char** argv) {
 
 			if (!dumb_mode && (stage_cur & 7) == 7) {
 
-				u32 cksum = hash32(trace_bits, map_used, HASH_CONST);
+				u32 cksum = hash32_time(trace_bits, map_used, HASH_CONST);
 
 				if (stage_cur == stage_max - 1 && cksum == prev_cksum) {
 
@@ -7296,7 +7328,7 @@ static u8 pilot_fuzzing(char** argv) {
 				   without wasting time on checksums. */
 
 				if (!dumb_mode && len >= EFF_MIN_LEN)
-					cksum = hash32(trace_bits, map_used, HASH_CONST);
+					cksum = hash32_time(trace_bits, map_used, HASH_CONST);
 				else
 					cksum = ~queue_cur->exec_cksum;
 
@@ -8950,7 +8982,7 @@ static u8 core_fuzzing(char** argv) {
 
 			if (!dumb_mode && (stage_cur & 7) == 7) {
 
-				u32 cksum = hash32(trace_bits, map_used, HASH_CONST);
+				u32 cksum = hash32_time(trace_bits, map_used, HASH_CONST);
 
 				if (stage_cur == stage_max - 1 && cksum == prev_cksum) {
 
@@ -9113,7 +9145,7 @@ static u8 core_fuzzing(char** argv) {
 				   without wasting time on checksums. */
 
 				if (!dumb_mode && len >= EFF_MIN_LEN)
-					cksum = hash32(trace_bits, map_used, HASH_CONST);
+					cksum = hash32_time(trace_bits, map_used, HASH_CONST);
 				else
 					cksum = ~queue_cur->exec_cksum;
 
@@ -12019,6 +12051,8 @@ break;
   else
     use_argv = argv + optind;
 
+  u64 ttt = get_cur_time_us();
+
   perform_dry_run(use_argv);
 
   cull_queue();
@@ -12119,6 +12153,8 @@ if(most_time_key ==1)
 
 stop_fuzzing:
 
+total_time = get_cur_time_us() - ttt;
+
   SAYF(CURSOR_SHOW cLRD "\n\n+++ Testing aborted %s +++\n" cRST,
        stop_soon == 2 ? "programmatically" : "by user");
 
@@ -12141,6 +12177,58 @@ stop_fuzzing:
   alloc_report();
 
   OKF("We're done here. Have a nice day!\n");
+
+total_time /= 1000;
+map_reset_time /= 1000;
+map_classify_time /= 1000;
+map_compare_time /= 1000;
+map_hash_time /= 1000;
+map_simplify_time /= 1000;
+map_copy_time /= 1000;
+exec_time /= 1000;
+score_update_time /= 1000;
+cull_queue_time /= 1000;
+
+	SAYF("Total time: %llu ms\n", total_time);
+  SAYF("Execution time: %llu ms\n", exec_time);
+  SAYF("Map classify: %llu ms\n", map_classify_time);
+  SAYF("Map compare: %llu ms\n", map_compare_time);
+  SAYF("Map reset: %llu ms\n", map_reset_time);
+  SAYF("Hash map time: %llu ms\n", map_hash_time);
+  SAYF("Simplify time: %llu ms\n", map_simplify_time);
+  SAYF("Map copy time: %llu ms\n", map_copy_time);
+  SAYF("Score update time: %llu ms\n", score_update_time);
+  SAYF("Cull queue time: %llu ms\n", cull_queue_time);
+
+	struct rusage usage;
+  getrusage(RUSAGE_CHILDREN, &usage);
+  SAYF("Page faults children : %ld\n", usage.ru_minflt);
+
+	struct rusage usageS;
+  getrusage(RUSAGE_SELF, &usageS);
+  SAYF("Page faults self : %ld\n", usageS.ru_minflt);
+  
+  char log_name[128];
+  snprintf(log_name, 128, "../%s.csv", sync_id);
+  
+  FILE* fp = fopen("time_log.txt", "a");
+  if(fp == NULL){
+      exit(-1);
+  }
+  fprintf(fp, "%u,", MAP_SIZE);
+  fprintf(fp, "%llu,", total_time);
+  fprintf(fp, "%llu,", exec_time);
+  fprintf(fp, "%llu,", map_classify_time);
+  fprintf(fp, "%llu,", map_compare_time);
+  fprintf(fp, "%llu,", map_reset_time);
+  fprintf(fp, "%llu,", map_hash_time);
+  fprintf(fp, "%llu,", map_simplify_time);
+  fprintf(fp, "%llu,", map_copy_time);
+  fprintf(fp, "%llu,", score_update_time);
+  fprintf(fp, "%llu,", cull_queue_time);
+  fprintf(fp, "%ld,", usage.ru_minflt);
+  fprintf(fp, "%ld\n", usageS.ru_minflt);
+  fclose(fp);
 
   exit(0);
 
